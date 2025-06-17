@@ -1,0 +1,4 @@
+profiler_logs/
+profiler_text/
+runs/
+**/__pycache__/
