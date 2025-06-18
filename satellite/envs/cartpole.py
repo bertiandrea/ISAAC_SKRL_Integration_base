@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+from typing import Tuple
 
 from isaacgym import gymutil, gymtorch, gymapi
 from .vec_task import VecTask
@@ -143,8 +144,8 @@ class Cartpole(VecTask):
 #####################################################################
 
 @torch.jit.script
-def compute_cartpole_reward(pole_angle, pole_vel, cart_vel, cart_pos,
-                            reset_dist, reset_buf, progress_buf, max_episode_length):
+def compute_cartpole_reward(pole_angle: torch.Tensor, pole_vel: torch.Tensor, cart_vel: torch.Tensor, cart_pos: torch.Tensor,
+                            reset_dist: float, reset_buf: torch.Tensor, progress_buf: torch.Tensor, max_episode_length: float) -> Tuple[torch.Tensor, torch.Tensor]:
 
     reward = 1.0 - pole_angle * pole_angle - 0.01 * torch.abs(cart_vel) - 0.005 * torch.abs(pole_vel)
 

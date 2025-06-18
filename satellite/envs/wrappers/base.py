@@ -64,26 +64,8 @@ class Wrapper(object):
 
     @property
     def observation_space(self) -> gymnasium.Space:
-        space = self._unwrapped.observation_space
-        # convert legacy gym.spaces.Box to gymnasium.spaces.Box
-        if isinstance(space, gym.spaces.Box):
-            return gymnasium.spaces.Box(
-                low=space.low,
-                high=space.high,
-                shape=space.shape,
-                dtype=space.dtype,
-            )
-        return space
-    
+        return self._unwrapped.observation_space
+
     @property
     def action_space(self) -> gymnasium.Space:
-        space = self._unwrapped.action_space
-        # convert legacy gym.spaces.Box to gymnasium.spaces.Box
-        if isinstance(space, gym.spaces.Box):
-            return gymnasium.spaces.Box(
-                low=space.low,
-                high=space.high,
-                shape=space.shape,
-                dtype=space.dtype,
-            )
-        return space
+        return self._unwrapped.action_space
