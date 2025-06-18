@@ -180,7 +180,7 @@ def main():
 
     # ──────────────────────────────────────────────────────────────────────────
     # Setup PyTorch profiler
-    log_dir = "/home/andreaberti/ISAAC_SKRL_Integration_baseline/profiler_logs"
+    log_dir = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_logs"
     prof = profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
         on_trace_ready=tensorboard_trace_handler(log_dir),
@@ -196,7 +196,7 @@ def main():
     trainer.train()
     prof.stop()
 
-    output_path = "/home/andreaberti/ISAAC_SKRL_Integration/profiler_text/text_output.txt"
+    output_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/text_output.txt"
     if os.path.exists(output_path):
         os.remove(output_path)
     
@@ -246,7 +246,7 @@ def main():
 
     print(df.head(40))
 
-    csv_path = "/home/andreaberti/ISAAC_SKRL_Integration/profiler_text/csv_output.csv"
+    csv_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/csv_output.csv"
     df.to_csv(csv_path, index=False)
 
 
