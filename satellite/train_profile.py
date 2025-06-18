@@ -169,7 +169,7 @@ def main():
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
     models["value"] = Value(env.observation_space, env.action_space, env.device)
 
-    cfg = PPO_DEFAULT_CONFIG.copy()
+    cfg["rl"]["PPO"] = PPO_DEFAULT_CONFIG.copy()
     cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
         "size": env.observation_space, "device": env.device
     }
