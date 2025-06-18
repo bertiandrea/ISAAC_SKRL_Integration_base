@@ -9,6 +9,7 @@ from skrl.memories.torch import RandomMemory
 from skrl.trainers.torch import SequentialTrainer
 from skrl.utils import set_seed
 
+from satellite.configs.satellite_config import SatelliteConfig
 from satellite.envs.satellite import Satellite
 from satellite.models.custom_model import Policy, Value
 from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
@@ -33,6 +34,23 @@ import os
 import pandas as pd
 # ──────────────────────────────────────────────────────────────────────────────
 
+def class_to_dict(obj) -> dict:
+    if not  hasattr(obj,"__dict__"):
+        return obj
+    result = {}
+    for key in dir(obj):
+        if key.startswith("_"):
+            continue
+        element = []
+        val = getattr(obj, key)
+        if isinstance(val, list):
+            for item in val:
+                element.append(class_to_dict(item))
+        else:
+            element = class_to_dict(val)
+        result[key] = element
+    return result
+
 REWARD_MAP = {
     "test": TestReward,
     "test_smooth": TestRewardSmooth,
@@ -54,135 +72,7 @@ def parse_args():
     )
     return parser.parse_args()
 
-def main():
-    args = parse_args()
-
-    set_seed()
-   
-    cfg = {
-        'physics_engine': 'physx',
-        'env': {
-            'numObservations' : 14, # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ]
-            'numStates' : 17, # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ, vx,vy,vz]
-            'numActions' : 3,
-            'sensor_noise_std': 0.0,
-            'actuation_noise_std': 0.0,
-            'torque_scale': 10,
-            'threshold_ang_goal' : 0.01745,        # soglia in radianti per orientamento
-            'threshold_vel_goal' : 0.01745,        # soglia in rad/sec per la differenza di velocità
-            'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
-            'episode_length_s' : 120,              # soglia in secondi per la terminazione di una singola simulazione
-
-            'numEnvs': 32768,
-            'envSpacing': 4.0,
-            'clipObservations': 5.0,
-            'clipActions': 1.0,
-            'asset': {
-                'assetName': 'satellite',
-                'assetRoot': '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite',
-                'assetFileName': 'satellite.urdf',
-                'init_pos_p': [0, 0, 0],    # posizione iniziale del satellite [x,y,z]
-                'init_pos_r': [0, 0, 0, 1]  # attitude iniziale del satellite [x,y,z,w]
-            }, 
-            'enableCameraSensors': False
-        },
-        'sim': {
-            'dt': 0.0166,
-            'substeps': 2,
-            'up_axis': 'z',
-            'use_gpu_pipeline': True,
-            'gravity': [0.0, 0.0, 0.0],
-            'physx': {
-                'num_threads': 4,
-                'solver_type': 1,
-                'use_gpu': True,
-                'num_position_iterations': 4,
-                'num_velocity_iterations': 0,
-                'contact_offset': 0.02,
-                'rest_offset': 0.001,
-                'bounce_threshold_velocity': 0.2,
-                'max_depenetration_velocity': 100.0,
-                'default_buffer_size_multiplier': 2.0,
-                'max_gpu_contact_pairs': 1048576,
-                'num_subscenes': 4,
-                'contact_collection': 0
-            }
-        },
-        'task': {
-            'randomize': False
-        },
-        'pid': {
-            'rate': {
-                'kp': 0.5,
-                'ki': 0.0,
-                'kd': 0.1,
-            }
-        },
-        'controller': {
-            'controller_logic': False
-        }
-    }
-    
-    env = Satellite(
-        cfg=cfg,
-        rl_device="cuda:0",
-        sim_device="cuda:0",
-        graphics_device_id=0,
-        headless=True,
-        virtual_screen_capture=False,
-        force_render=False,
-        reward_fn=REWARD_MAP[args.reward_fn]()
-    )
-    
-    env = IsaacGymWrapper(env)
-
-    memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
-
-    models = {}
-    models["policy"] = Policy(env.observation_space, env.action_space, env.device)
-    models["value"] = Value(env.observation_space, env.action_space, env.device)
-
-    cfg = PPO_DEFAULT_CONFIG.copy()
-    cfg["rollouts"] = 16  # memory_size
-    cfg["learning_epochs"] = 8
-    cfg["mini_batches"] = 1  # 16 * 512 / 8192
-    cfg["discount_factor"] = 0.99
-    cfg["lambda"] = 0.95
-    cfg["learning_rate"] = 3e-4
-    cfg["learning_rate_scheduler"] = KLAdaptiveRL
-    cfg["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.008}
-    cfg["random_timesteps"] = 0
-    cfg["learning_starts"] = 0
-    cfg["grad_norm_clip"] = 1.0
-    cfg["ratio_clip"] = 0.2
-    cfg["value_clip"] = 0.2
-    cfg["clip_predicted_values"] = True
-    cfg["entropy_loss_scale"] = 0.0
-    cfg["value_loss_scale"] = 2.0
-    cfg["kl_threshold"] = 0
-    cfg["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
-    cfg["state_preprocessor"] = RunningStandardScaler
-    cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
-    cfg["value_preprocessor"] = RunningStandardScaler
-    cfg["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
-    cfg["experiment"]["write_interval"] = 16
-    cfg["experiment"]["checkpoint_interval"] = 80
-    cfg["experiment"]["directory"] = "runs/satellite"
-
-    agent = PPO(models=models,
-                memory=memory,
-                cfg=cfg,
-                observation_space=env.observation_space,
-                action_space=env.action_space,
-                device=env.device)
-
-
-    cfg_trainer = {"timesteps": 1600, "headless": True}
-    trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
-
-    # ──────────────────────────────────────────────────────────────────────────
-    # Setup PyTorch profiler
-    log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/satellite"
+def setup_profiler(log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/satellite"):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir, exist_ok=True)
     prof = profile(
@@ -194,13 +84,9 @@ def main():
         with_flops=True,
         with_modules=True,
     )
-    # ──────────────────────────────────────────────────────────────────────────
 
-    prof.start()
-    trainer.train()
-    prof.stop()
-
-    output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
+def save_profiler_results(prof, log_dir="/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/satellite"):
+    output_path = log_dir + "/text_output.txt"
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
@@ -250,10 +136,68 @@ def main():
 
     print(df.head(40))
 
-    csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/csv_output.csv"
+    csv_path = log_dir + "/csv_output.csv"
     if not os.path.exists(os.path.dirname(csv_path)):
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     df.to_csv(csv_path, index=False)
+
+def main():
+    args = parse_args()
+
+    cfg_class = SatelliteConfig()
+    cfg = class_to_dict(cfg_class)
+
+    if cfg["set_seed"]:
+        set_seed(cfg["seed"])
+    
+    env = Satellite(
+        cfg=cfg,
+        rl_device="cuda:0",
+        sim_device="cuda:0",
+        graphics_device_id=0,
+        headless=True,
+        virtual_screen_capture=False,
+        force_render=False,
+        reward_fn=REWARD_MAP[args.reward_fn]()
+    )
+    
+    env = IsaacGymWrapper(env)
+
+    memory = RandomMemory(memory_size=cfg["rl"]["memory"]["rollouts"], num_envs=env.num_envs, device=env.device)
+
+    models = {}
+    models["policy"] = Policy(env.observation_space, env.action_space, env.device)
+    models["value"] = Value(env.observation_space, env.action_space, env.device)
+
+    cfg = PPO_DEFAULT_CONFIG.copy()
+    cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
+        "size": env.state_space, "device": env.device
+    }
+    cfg["rl"]["PPO"]["value_preprocessor_kwargs"] = {
+        "size": 1, "device": env.device
+    }
+    cfg["rl"]["PPO"]["learning_rate_scheduler"] = KLAdaptiveRL
+    cfg["rl"]["PPO"]["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.016}
+    cfg["rl"]["PPO"]["state_preprocessor"] = RunningStandardScaler
+    cfg["rl"]["PPO"]["value_preprocessor"] = RunningStandardScaler
+    cfg["rl"]["PPO"]["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.01
+    
+    agent = PPO(models=models,
+                memory=memory,
+                cfg=cfg,
+                observation_space=env.observation_space,
+                action_space=env.action_space,
+                device=env.device)
+
+    trainer = SequentialTrainer(cfg=cfg["rl"]["trainer"], env=env, agents=agent)
+
+    prof = setup_profiler()
+
+    prof.start()
+    trainer.train()
+    prof.stop()
+
+    save_profiler_results(prof)
 
 
 if __name__ == "__main__":
