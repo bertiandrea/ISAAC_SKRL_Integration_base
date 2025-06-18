@@ -74,7 +74,7 @@ def main():
             'clipActions': 1.0,
             'asset': {
                 'assetName': 'satellite',
-                'assetRoot': '../',
+                'assetRoot': '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite',
                 'assetFileName': 'satellite.urdf'
             }, 
             'enableCameraSensors': False,

@@ -18,20 +18,21 @@ from torch.profiler import record_function
 class Satellite(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render, reward_fn: RewardFunction = None):
         self.cfg = cfg
-        
-        self.env_spacing = getattr(cfg["env"], 'envSpacing', 0.0)
-        self.asset_name = getattr(cfg["env"]["asset"], 'assetName', 'satellite')
-        self.asset_root = getattr(cfg["env"]["asset"], 'assetRoot', '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite')
-        self.asset_file = getattr(cfg["env"]["asset"], 'assetFileName', 'satellite.urdf')
-        self.asset_init_pos_p = getattr(cfg["env"]["asset"], 'init_pos_p', [0.0, 0.0, 0.0])
-        self.asset_init_pos_r = getattr(cfg["env"]["asset"], 'init_pos_r', [0.0, 0.0, 0.0, 1.0])
-        self.actuation_noise_std = getattr(cfg["env"], 'actuation_noise_std', 0.0)
-        self.sensor_noise_std = getattr(cfg["env"], 'sensor_noise_std', 0.0)
-        self.torque_scale = getattr(cfg["env"], 'torque_scale', 1.0)
-        self.threshold_ang_goal = getattr(cfg["env"], 'threshold_ang_goal', 0.01745)  # radians
-        self.threshold_vel_goal = getattr(cfg["env"], 'threshold_vel_goal', 0.01745)  # radians/sec
-        self.overspeed_ang_vel = getattr(cfg["env"], 'overspeed_ang_vel', 0.78540)  # radians/sec
-        self.max_episode_length = getattr(cfg["env"], 'episode_length_s', 120) / cfg["sim"]["dt"]  # seconds
+
+        self.dt = cfg["sim"].get('dt', 1 / 60.0)  # seconds
+        self.env_spacing = cfg["env"].get('envSpacing', 0.0)
+        self.asset_name = cfg["env"]["asset"].get('assetName', 'satellite')
+        self.asset_root = cfg["env"]["asset"].get('assetRoot', '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite') 
+        self.asset_file = cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
+        self.asset_init_pos_p = cfg["env"]["asset"].get('init_pos_p', [0.0, 0.0, 0.0])
+        self.asset_init_pos_r = cfg["env"]["asset"].get('init_pos_r', [0.0, 0.0, 0.0, 1.0])
+        self.actuation_noise_std = cfg["env"].get('actuation_noise_std', 0.0)
+        self.sensor_noise_std = cfg["env"].get('sensor_noise_std', 0.0)
+        self.torque_scale = cfg["env"].get('torque_scale', 1.0)
+        self.threshold_ang_goal = cfg["env"].get('threshold_ang_goal', 0.01745)  # radians
+        self.threshold_vel_goal = cfg["env"].get('threshold_vel_goal', 0.01745)  # radians/sec
+        self.overspeed_ang_vel = cfg["env"].get('overspeed_ang_vel', 0.78540)  # radians/sec
+        self.max_episode_length = cfg["env"].get('episode_length_s', 120) / self.dt  # seconds
         
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -63,13 +64,13 @@ class Satellite(VecTask):
         else:
             self.reward_fn = reward_fn
 
-        self.controller_logic = getattr(cfg["controller"], "controller_logic", False)
+        self.controller_logic = cfg["controller"].get("controller_logic", False)
         if self.controller_logic:
             self.pid_rate = PID(
                 num_envs=self.num_envs,
-                kp=getattr(cfg["pid"]["rate"], "kp", 1.0),
-                ki=getattr(cfg["pid"]["rate"], "ki", 0.1),
-                kd=getattr(cfg["pid"]["rate"], "kd", 0.01),
+                kp=cfg["pid"]["rate"].get("kp", 1.0),
+                ki=cfg["pid"]["rate"].get("ki", 0.1),
+                kd=cfg["pid"]["rate"].get("kd", 0.01),
                 dt=self.dt,
                 device=self.device
             )
@@ -78,7 +79,7 @@ class Satellite(VecTask):
                 device=self.device,
                 dt=self.dt,
                 pid_rate=self.pid_rate,
-                torque_tau=getattr(cfg["controller"], "torque_tau", 0.02)
+                torque_tau=cfg["controller"].get("torque_tau", 0.02)
             )
 
     def create_sim(self) -> None:
