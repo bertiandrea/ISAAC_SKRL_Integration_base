@@ -238,10 +238,6 @@ class VecTask(Env):
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
-    def zero_actions(self) -> torch.Tensor:
-        actions = torch.zeros([self.num_envs, self.num_actions], dtype=torch.float32, device=self.rl_device)
-        return actions
-
     def reset(self):
         self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
@@ -249,18 +245,6 @@ class VecTask(Env):
             self.obs_dict["states"] = self.get_state()
 
         return self.obs_dict
-
-    def reset_done(self):
-        done_env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
-        if len(done_env_ids) > 0:
-            self.reset_idx(done_env_ids)
-
-        self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-
-        if self.num_states > 0:
-            self.obs_dict["states"] = self.get_state()
-
-        return self.obs_dict, done_env_ids
 
     def render(self, mode="rgb_array"):
         if self.viewer:

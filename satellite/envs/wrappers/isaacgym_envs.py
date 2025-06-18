@@ -14,7 +14,7 @@ from skrl.utils.spaces.torch import (
 from satellite.envs.wrappers.base import Wrapper
 
 
-class IsaacGymPreview3Wrapper(Wrapper):
+class IsaacGymWrapper(Wrapper):
     def __init__(self, env: Any) -> None:
         super().__init__(env)
 
@@ -32,13 +32,8 @@ class IsaacGymPreview3Wrapper(Wrapper):
 
     @property
     def state_space(self) -> Union[gymnasium.Space, None]:
-        try:
-            if self.num_states:
-                return convert_gym_space(self._unwrapped.state_space)
-        except:
-            pass
-        return None
-
+        return convert_gym_space(self._unwrapped.state_space)
+        
     def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
         observations, reward, terminated, self._info = self._env.step(
             unflatten_tensorized_space(self.action_space, actions)
@@ -53,9 +48,6 @@ class IsaacGymPreview3Wrapper(Wrapper):
             self._observations = flatten_tensorized_space(tensorize_space(self.observation_space, observations["obs"]))
             self._reset_once = False
         return self._observations, self._info
-
-    def render(self, *args, **kwargs) -> None:
-        return None
 
     def close(self) -> None:
         pass

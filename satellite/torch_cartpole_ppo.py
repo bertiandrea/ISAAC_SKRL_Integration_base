@@ -3,10 +3,9 @@ import isaacgym
 import torch
 import torch.nn as nn
 
-# import the skrl components to build the RL system
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from satellite.envs.cartpole import Cartpole
-from satellite.envs.wrappers.isaacgym_envs import IsaacGymPreview3Wrapper
+from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
 from skrl.memories.torch import RandomMemory
 from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
 from skrl.resources.preprocessors.torch import RunningStandardScaler
@@ -14,12 +13,8 @@ from skrl.resources.schedulers.torch import KLAdaptiveRL
 from skrl.trainers.torch import SequentialTrainer
 from skrl.utils import set_seed
 
+set_seed()
 
-# seed for reproducibility
-set_seed()  # e.g. `set_seed(40)` for fixed seed
-
-
-# define shared model (stochastic and deterministic models) using mixins
 class Shared(GaussianMixin, DeterministicMixin, Model):
     def __init__(self, observation_space, action_space, device, clip_actions=False,
                  clip_log_std=True, min_log_std=-20, max_log_std=2, reduction="sum"):
@@ -53,7 +48,6 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
             return self.value_layer(shared_output), {}
 
 
-# load and wrap the Isaac Gym environment
 cfg = {
     'name': 'Cartpole',
     'physics_engine': 'physx',
@@ -107,25 +101,14 @@ env = Cartpole(
     force_render=False
 )
 
-env = IsaacGymPreview3Wrapper(env)
+env = IsaacGymWrapper(env)
 
-device = env.device
+memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
 
-
-# instantiate a memory as rollout buffer (any memory can be used for this)
-memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
-
-
-# instantiate the agent's models (function approximators).
-# PPO requires 2 models, visit its documentation for more details
-# https://skrl.readthedocs.io/en/latest/api/agents/ppo.html#models
 models = {}
-models["policy"] = Shared(env.observation_space, env.action_space, device)
+models["policy"] = Shared(env.observation_space, env.action_space, env.device)
 models["value"] = models["policy"]  # same instance: shared model
 
-
-# configure and instantiate the agent (visit its documentation to see all the options)
-# https://skrl.readthedocs.io/en/latest/api/agents/ppo.html#configuration-and-hyperparameters
 cfg = PPO_DEFAULT_CONFIG.copy()
 cfg["rollouts"] = 16  # memory_size
 cfg["learning_epochs"] = 8
@@ -146,10 +129,9 @@ cfg["value_loss_scale"] = 2.0
 cfg["kl_threshold"] = 0
 cfg["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
 cfg["state_preprocessor"] = RunningStandardScaler
-cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": device}
+cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
 cfg["value_preprocessor"] = RunningStandardScaler
-cfg["value_preprocessor_kwargs"] = {"size": 1, "device": device}
-# logging to TensorBoard and write checkpoints (in timesteps)
+cfg["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
 cfg["experiment"]["write_interval"] = 16
 cfg["experiment"]["checkpoint_interval"] = 80
 cfg["experiment"]["directory"] = "runs"
@@ -159,26 +141,9 @@ agent = PPO(models=models,
             cfg=cfg,
             observation_space=env.observation_space,
             action_space=env.action_space,
-            device=device)
+            device=env.device)
 
-
-# configure and instantiate the RL trainer
 cfg_trainer = {"timesteps": 1600, "headless": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
-# start training
 trainer.train()
-
-
-# # ---------------------------------------------------------
-# # comment the code above: `trainer.train()`, and...
-# # uncomment the following lines to evaluate a trained agent
-# # ---------------------------------------------------------
-# from skrl.utils.huggingface import download_model_from_huggingface
-
-# # download the trained agent's checkpoint from Hugging Face Hub and load it
-# path = download_model_from_huggingface("skrl/IsaacGymEnvs-Cartpole-PPO", filename="agent.pt")
-# agent.load(path)
-
-# # start evaluation
-# trainer.eval()
