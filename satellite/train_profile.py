@@ -68,7 +68,12 @@ def main():
             'sensor_noise_std': 0.0,
             'actuation_noise_std': 0.0,
             'torque_scale': 10,
-            'numEnvs': 256,
+            'threshold_ang_goal' : 0.01745,        # soglia in radianti per orientamento
+            'threshold_vel_goal' : 0.01745,        # soglia in rad/sec per la differenza di velocità
+            'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
+            'episode_length_s' : 120,              # soglia in secondi per la terminazione di una singola simulazione
+
+            'numEnvs': 65536,
             'envSpacing': 4.0,
             'clipObservations': 5.0,
             'clipActions': 1.0,
@@ -77,12 +82,7 @@ def main():
                 'assetRoot': '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite',
                 'assetFileName': 'satellite.urdf'
             }, 
-            'enableCameraSensors': False,
-
-            'threshold_ang_goal' : 0.01745,        # soglia in radianti per orientamento
-            'threshold_vel_goal' : 0.01745,        # soglia in rad/sec per la differenza di velocità
-            'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
-            'episode_length_s' : 120              # soglia in secondi per la terminazione di una singola simulazione
+            'enableCameraSensors': False
         },
         'sim': {
             'dt': 0.0166,
@@ -99,8 +99,8 @@ def main():
                 'contact_offset': 0.02,
                 'rest_offset': 0.001,
                 'bounce_threshold_velocity': 0.2,
-                'max_depenetration_velocity': 100.0,
-                'default_buffer_size_multiplier': 2.0,
+                'max_depenetration_velocity': 1000.0,
+                'default_buffer_size_multiplier': 5.0,
                 'max_gpu_contact_pairs': 1048576,
                 'num_subscenes': 4,
                 'contact_collection': 0
