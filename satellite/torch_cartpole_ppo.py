@@ -160,6 +160,8 @@ trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 # ──────────────────────────────────────────────────────────────────────────
 # Setup PyTorch profiler
 log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/cartpole"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir, exist_ok=True)
 prof = profile(
     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
     on_trace_ready=tensorboard_trace_handler(log_dir),
