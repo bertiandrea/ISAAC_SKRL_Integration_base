@@ -9,6 +9,7 @@ from skrl.memories.torch import RandomMemory
 from skrl.trainers.torch import SequentialTrainer
 from skrl.utils import set_seed
 
+from satellite.configs.satellite_config import SatelliteConfig
 from satellite.envs.satellite import Satellite
 from satellite.models.custom_model import Policy, Value
 from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
@@ -21,6 +22,23 @@ from satellite.rewards.satellite_reward import (
     ContinuousDiscreteEffortReward,
     ShapingReward,
 )
+
+def class_to_dict(obj) -> dict:
+    if not  hasattr(obj,"__dict__"):
+        return obj
+    result = {}
+    for key in dir(obj):
+        if key.startswith("_"):
+            continue
+        element = []
+        val = getattr(obj, key)
+        if isinstance(val, list):
+            for item in val:
+                element.append(class_to_dict(item))
+        else:
+            element = class_to_dict(val)
+        result[key] = element
+    return result
 
 REWARD_MAP = {
     "test": TestReward,
@@ -46,6 +64,9 @@ def parse_args():
 def main():
     args = parse_args()
 
+    env_cfg = SatelliteConfig()
+    env_cfg = class_to_dict(env_cfg)
+
     set_seed()
    
     cfg = {
@@ -62,7 +83,7 @@ def main():
             'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
             'episode_length_s' : 120,              # soglia in secondi per la terminazione di una singola simulazione
 
-            'numEnvs': 32768,
+            'numEnvs': 4096,
             'envSpacing': 4.0,
             'clipObservations': 5.0,
             'clipActions': 1.0,
@@ -115,9 +136,9 @@ def main():
         rl_device="cuda:0",
         sim_device="cuda:0",
         graphics_device_id=0,
-        headless=True,
+        headless=False,
         virtual_screen_capture=False,
-        force_render=False,
+        force_render=True,
         reward_fn=REWARD_MAP[args.reward_fn]()
     )
     

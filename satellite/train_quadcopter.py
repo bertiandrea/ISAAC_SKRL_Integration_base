@@ -53,7 +53,7 @@ cfg = {
     'name': 'Quadcopter',
     'physics_engine': 'physx',
     'env': {
-        'numEnvs': 32768,
+        'numEnvs': 4096,
         'envSpacing': 1.25, 
         'maxEpisodeLength': 500, 
         'enableDebugVis': False, 
@@ -93,9 +93,9 @@ env = Quadcopter(
     rl_device="cuda:0",
     sim_device="cuda:0",
     graphics_device_id=0,
-    headless=True,
+    headless=False,
     virtual_screen_capture=False,
-    force_render=False
+    force_render=True
 )
 
 env = IsaacGymWrapper(env)
