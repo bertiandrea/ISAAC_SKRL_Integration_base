@@ -73,7 +73,7 @@ def main():
             'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
             'episode_length_s' : 120,              # soglia in secondi per la terminazione di una singola simulazione
 
-            'numEnvs': 65536,
+            'numEnvs': 32768,
             'envSpacing': 4.0,
             'clipObservations': 5.0,
             'clipActions': 1.0,
@@ -197,8 +197,8 @@ def main():
     prof.stop()
 
     output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
-    if os.path.exists(output_path):
-        os.remove(output_path)
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     events = prof.key_averages()
 
@@ -247,6 +247,8 @@ def main():
     print(df.head(40))
 
     csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/csv_output.csv"
+    if not os.path.exists(os.path.dirname(csv_path)):
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     df.to_csv(csv_path, index=False)
 
 
