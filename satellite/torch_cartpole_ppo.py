@@ -63,7 +63,7 @@ cfg = {
     'name': 'Cartpole',
     'physics_engine': 'physx',
     'env': {
-        'numEnvs': 65536,
+        'numEnvs': 32768,
         'envSpacing': 4.0,
         'resetDist': 3.0,
         'maxEffort': 400.0,

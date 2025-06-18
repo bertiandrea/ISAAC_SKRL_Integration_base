@@ -64,7 +64,7 @@ cfg = {
     'name': 'Quadcopter',
     'physics_engine': 'physx',
     'env': {
-        'numEnvs': 65536,
+        'numEnvs': 32768,
         'envSpacing': 1.25, 
         'maxEpisodeLength': 500, 
         'enableDebugVis': False, 
