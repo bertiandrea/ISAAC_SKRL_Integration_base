@@ -142,11 +142,11 @@ class SatelliteConfig(BaseConfig):
             random_timesteps = 0
             learning_starts = 0
             
-            class experiment:
-                    write_interval = 10
-                    checkpoint_interval = 100
-                    directory = "./runs"
-                    wandb = False
+            #class experiment:
+            #        write_interval = 10
+            #        checkpoint_interval = 100
+            #        directory = "./runs"
+            #        wandb = False
 
         class trainer:
             rollouts = 16

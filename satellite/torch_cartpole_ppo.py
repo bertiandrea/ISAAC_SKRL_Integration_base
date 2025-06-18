@@ -159,7 +159,7 @@ trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # ──────────────────────────────────────────────────────────────────────────
 # Setup PyTorch profiler
-log_dir = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_logs"
+log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/cartpole"
 prof = profile(
     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
     on_trace_ready=tensorboard_trace_handler(log_dir),
@@ -175,7 +175,7 @@ prof.start()
 trainer.train()
 prof.stop()
 
-output_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/text_output.txt"
+output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/cartpole/text_output.txt"
 if os.path.exists(output_path):
     os.remove(output_path)
 
@@ -225,5 +225,5 @@ df = df.drop(columns='order')
 
 print(df.head(40))
 
-csv_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/csv_output.csv"
+csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/cartpole/csv_output.csv"
 df.to_csv(csv_path, index=False)

@@ -163,9 +163,9 @@ def main():
     cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
     cfg["value_preprocessor"] = RunningStandardScaler
     cfg["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
-    cfg["experiment"]["write_interval"] = 16
-    cfg["experiment"]["checkpoint_interval"] = 80
-    cfg["experiment"]["directory"] = "runs"
+    #cfg["experiment"]["write_interval"] = 16
+    #cfg["experiment"]["checkpoint_interval"] = 80
+    #cfg["experiment"]["directory"] = "runs"
 
     agent = PPO(models=models,
                 memory=memory,
@@ -180,7 +180,7 @@ def main():
 
     # ──────────────────────────────────────────────────────────────────────────
     # Setup PyTorch profiler
-    log_dir = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_logs"
+    log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/satellite"
     prof = profile(
         activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
         on_trace_ready=tensorboard_trace_handler(log_dir),
@@ -196,7 +196,7 @@ def main():
     trainer.train()
     prof.stop()
 
-    output_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/text_output.txt"
+    output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
     if os.path.exists(output_path):
         os.remove(output_path)
     
@@ -246,7 +246,7 @@ def main():
 
     print(df.head(40))
 
-    csv_path = "/home/andreaberti/ISAAC_SKRL_Integration_base/profiler_text/csv_output.csv"
+    csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/satellite/csv_output.csv"
     df.to_csv(csv_path, index=False)
 
 
