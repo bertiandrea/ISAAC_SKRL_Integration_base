@@ -26,7 +26,6 @@ class Cartpole(VecTask):
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
 
     def create_sim(self):
-        # set the up axis to be z-up given that assets are y-up by default
         self.up_axis = self.cfg["sim"]["up_axis"]
 
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
@@ -35,12 +34,10 @@ class Cartpole(VecTask):
 
     def _create_ground_plane(self):
         plane_params = gymapi.PlaneParams()
-        # set the normal force to be z dimension
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0) if self.up_axis == 'z' else gymapi.Vec3(0.0, 1.0, 0.0)
         self.gym.add_ground(self.sim, plane_params)
 
     def _create_envs(self, num_envs, spacing, num_per_row):
-        # define plane on which environments are initialized
         lower = gymapi.Vec3(0.5 * -spacing, -spacing, 0.0) if self.up_axis == 'z' else gymapi.Vec3(0.5 * -spacing, 0.0, -spacing)
         upper = gymapi.Vec3(0.5 * spacing, spacing, spacing)
 
@@ -63,7 +60,6 @@ class Cartpole(VecTask):
         pose = gymapi.Transform()
         if self.up_axis == 'z':
             pose.p.z = 2.0
-            # asset is rotated z-up by default, no additional rotations needed
             pose.r = gymapi.Quat(0.0, 0.0, 0.0, 1.0)
         else:
             pose.p.y = 2.0
@@ -72,7 +68,6 @@ class Cartpole(VecTask):
         self.cartpole_handles = []
         self.envs = []
         for i in range(self.num_envs):
-            # create env instance
             env_ptr = self.gym.create_env(
                 self.sim, lower, upper, num_per_row
             )
@@ -89,7 +84,6 @@ class Cartpole(VecTask):
             self.cartpole_handles.append(cartpole_handle)
 
     def compute_reward(self):
-        # retrieve environment observations from buffer
         pole_angle = self.obs_buf[:, 2]
         pole_vel = self.obs_buf[:, 3]
         cart_vel = self.obs_buf[:, 1]
@@ -148,14 +142,12 @@ class Cartpole(VecTask):
 ###=========================jit functions=========================###
 #####################################################################
 
-
+@torch.jit.script
 def compute_cartpole_reward(pole_angle, pole_vel, cart_vel, cart_pos,
                             reset_dist, reset_buf, progress_buf, max_episode_length):
 
-    # reward is combo of angle deviated from upright, velocity of cart, and velocity of pole moving
     reward = 1.0 - pole_angle * pole_angle - 0.01 * torch.abs(cart_vel) - 0.005 * torch.abs(pole_vel)
 
-    # adjust reward for reset agents
     reward = torch.where(torch.abs(cart_pos) > reset_dist, torch.ones_like(reward) * -2.0, reward)
     reward = torch.where(torch.abs(pole_angle) > np.pi / 2, torch.ones_like(reward) * -2.0, reward)
 

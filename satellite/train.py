@@ -73,7 +73,7 @@ memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
 
 models = {}
 models["policy"] = Policy(env.observation_space, env.action_space, env.device)
-models["value"] = Value(env.observation_space, env.action_space, env.device)
+models["value"] = Value(env.state_space, env.action_space, env.device)
 
 
 cfg = PPO_DEFAULT_CONFIG.copy()
@@ -106,7 +106,7 @@ cfg["experiment"]["directory"] = "runs"
 agent = PPO(models=models,
             memory=memory,
             cfg=cfg,
-            observation_space=env.observation_space,
+            observation_space=env.state_space,
             action_space=env.action_space,
             device=env.device)
 
