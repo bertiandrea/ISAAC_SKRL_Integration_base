@@ -9,9 +9,9 @@ from skrl.memories.torch import RandomMemory
 from skrl.trainers.torch import SequentialTrainer
 from skrl.utils import set_seed
 
-from satellite.envs.cartpole import Cartpole
+from satellite.envs.satellite import Satellite
 from satellite.models.custom_model import Policy, Value
-from satellite.envs.wrappers.isaacgym_envs import IsaacGymPreview3Wrapper
+from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Profiler imports
@@ -28,20 +28,29 @@ def main():
     set_seed()
    
     cfg = {
-        'name': 'Cartpole',
         'physics_engine': 'physx',
         'env': {
+            'numObservations' : 14, # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ]
+            'numStates' : 17, # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ, vx,vy,vz]
+            'numActions' : 3,
+            'sensor_noise_std': 0.0,
+            'actuation_noise_std': 0.0,
+            'torque_scale': 10,
             'numEnvs': 256,
             'envSpacing': 4.0,
-            'resetDist': 3.0,
-            'maxEffort': 400.0,
             'clipObservations': 5.0,
             'clipActions': 1.0,
             'asset': {
+                'assetName': 'satellite',
                 'assetRoot': '../',
-                'assetFileName': 'cartpole.urdf'
+                'assetFileName': 'satellite.urdf'
             }, 
-            'enableCameraSensors': False
+            'enableCameraSensors': False,
+
+            'threshold_ang_goal' : 0.01745,        # soglia in radianti per orientamento
+            'threshold_vel_goal' : 0.01745,        # soglia in rad/sec per la differenza di velocità
+            'overspeed_ang_vel' :  0.78540,        # soglia in rad/sec per l'overspeed
+            'episode_length_s' : 120              # soglia in secondi per la terminazione di una singola simulazione
         },
         'sim': {
             'dt': 0.0166,
@@ -67,10 +76,20 @@ def main():
         },
         'task': {
             'randomize': False
+        },
+        'pid': {
+            'rate': {
+                'kp': 0.5,
+                'ki': 0.0,
+                'kd': 0.1,
+            }
+        },
+        'controller': {
+            'controller_logic': False
         }
     }
     
-    env = Cartpole(
+    env = Satellite(
         cfg=cfg,
         rl_device="cuda:0",
         sim_device="cuda:0",
@@ -80,13 +99,13 @@ def main():
         force_render=False
     )
     
-    env = IsaacGymPreview3Wrapper(env)
+    env = IsaacGymWrapper(env)
 
     memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
 
     models = {}
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
-    models["value"] = Value(env.state_space, env.action_space, env.device)
+    models["value"] = Value(env.observation_space, env.action_space, env.device)
 
 
     cfg = PPO_DEFAULT_CONFIG.copy()
@@ -119,12 +138,12 @@ def main():
     agent = PPO(models=models,
                 memory=memory,
                 cfg=cfg,
-                observation_space=env.state_space,
+                observation_space=env.observation_space,
                 action_space=env.action_space,
                 device=env.device)
 
 
-    cfg_trainer = {"timesteps": 1600, "headless": True}
+    cfg_trainer = {"timesteps": 16, "headless": True}
     trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
     # ──────────────────────────────────────────────────────────────────────────
