@@ -1,10 +1,38 @@
+# Copyright (c) 2018-2023, NVIDIA Corporation
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
 import isaacgym
 
 import torch
 import torch.nn.functional as F
 import numpy as np
 
-from typing import List
 
 def to_torch(x, dtype=torch.float, device='cuda:0', requires_grad=False):
     return torch.tensor(x, dtype=dtype, device=device, requires_grad=requires_grad)
@@ -127,6 +155,8 @@ def get_basis_vector(q, v):
 
 
 def get_axis_params(value, axis_idx, x_value=0., dtype=float, n_dims=3):
+    """construct arguments to `Vec` according to axis index.
+    """
     zs = np.zeros((n_dims,))
     assert axis_idx < n_dims, "the axis dim should be within the vector dimensions"
     zs[axis_idx] = 1.
@@ -136,7 +166,8 @@ def get_axis_params(value, axis_idx, x_value=0., dtype=float, n_dims=3):
 
 
 @torch.jit.script
-def copysign(a: float, b: torch.Tensor) -> torch.Tensor:
+def copysign(a, b):
+    # type: (float, Tensor) -> Tensor
     a = torch.tensor(a, device=b.device, dtype=torch.float).repeat(b.shape[0])
     return torch.abs(a) * torch.sign(b)
 
@@ -144,15 +175,18 @@ def copysign(a: float, b: torch.Tensor) -> torch.Tensor:
 @torch.jit.script
 def get_euler_xyz(q):
     qx, qy, qz, qw = 0, 1, 2, 3
-
+    # roll (x-axis rotation)
     sinr_cosp = 2.0 * (q[:, qw] * q[:, qx] + q[:, qy] * q[:, qz])
     cosr_cosp = q[:, qw] * q[:, qw] - q[:, qx] * \
         q[:, qx] - q[:, qy] * q[:, qy] + q[:, qz] * q[:, qz]
     roll = torch.atan2(sinr_cosp, cosr_cosp)
 
+    # pitch (y-axis rotation)
     sinp = 2.0 * (q[:, qw] * q[:, qy] - q[:, qz] * q[:, qx])
-    pitch = torch.where(torch.abs(sinp) >= 1, copysign(np.pi / 2.0, sinp), torch.asin(sinp))
+    pitch = torch.where(torch.abs(sinp) >= 1, copysign(
+        np.pi / 2.0, sinp), torch.asin(sinp))
 
+    # yaw (z-axis rotation)
     siny_cosp = 2.0 * (q[:, qw] * q[:, qz] + q[:, qx] * q[:, qy])
     cosy_cosp = q[:, qw] * q[:, qw] + q[:, qx] * \
         q[:, qx] - q[:, qy] * q[:, qy] - q[:, qz] * q[:, qz]
@@ -177,13 +211,16 @@ def quat_from_euler_xyz(roll, pitch, yaw):
 
     return torch.stack([qx, qy, qz, qw], dim=-1)
 
+
 @torch.jit.script
-def torch_rand_float(lower: float, upper: float, shape: List[int], device: str) -> torch.Tensor:
-    return (upper - lower) * torch.rand(shape, device=device) + lower
+def torch_rand_float(lower, upper, shape, device):
+    # type: (float, float, Tuple[int, int], str) -> Tensor
+    return (upper - lower) * torch.rand(*shape, device=device) + lower
 
 
 @torch.jit.script
-def torch_random_dir_2(shape: List[int], device: str) -> torch.Tensor:
+def torch_random_dir_2(shape, device):
+    # type: (Tuple[int, int], str) -> Tensor
     angle = torch_rand_float(-np.pi, np.pi, shape, device).squeeze(-1)
     return torch.stack([torch.cos(angle), torch.sin(angle)], dim=-1)
 
@@ -211,6 +248,7 @@ def unscale_np(x, lower, upper):
 def compute_heading_and_up(
     torso_rotation, inv_start_rot, to_target, vec0, vec1, up_idx
 ):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
     num_envs = torso_rotation.shape[0]
     target_dirs = normalize(to_target)
 
@@ -239,7 +277,8 @@ def compute_rot(torso_quat, velocity, ang_velocity, targets, torso_positions):
 
 
 @torch.jit.script
-def quat_axis(q: torch.Tensor, axis: int = 0) -> torch.Tensor:
+def quat_axis(q, axis=0):
+    # type: (Tensor, int) -> Tensor
     basis_vec = torch.zeros(q.shape[0], 3, device=q.device)
     basis_vec[:, axis] = 1
     return quat_rotate(q, basis_vec)
@@ -251,17 +290,60 @@ Normalization and Denormalization of Tensors
 
 @torch.jit.script
 def scale_transform(x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    """
+    Normalizes a given input tensor to a range of [-1, 1].
+
+    @note It uses pytorch broadcasting functionality to deal with batched input.
+
+    Args:
+        x: Input tensor of shape (N, dims).
+        lower: The minimum value of the tensor. Shape (dims,)
+        upper: The maximum value of the tensor. Shape (dims,)
+
+    Returns:
+        Normalized transform of the tensor. Shape (N, dims)
+    """
+    # default value of center
     offset = (lower + upper) * 0.5
+    # return normalized tensor
     return 2 * (x - offset) / (upper - lower)
 
 
 @torch.jit.script
 def unscale_transform(x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    """
+    Denormalizes a given input tensor from range of [-1, 1] to (lower, upper).
+
+    @note It uses pytorch broadcasting functionality to deal with batched input.
+
+    Args:
+        x: Input tensor of shape (N, dims).
+        lower: The minimum value of the tensor. Shape (dims,)
+        upper: The maximum value of the tensor. Shape (dims,)
+
+    Returns:
+        Denormalized transform of the tensor. Shape (N, dims)
+    """
+    # default value of center
     offset = (lower + upper) * 0.5
+    # return normalized tensor
     return x * (upper - lower) * 0.5 + offset
 
 @torch.jit.script
 def saturate(x: torch.Tensor, lower: torch.Tensor, upper: torch.Tensor) -> torch.Tensor:
+    """
+    Clamps a given input tensor to (lower, upper).
+
+    @note It uses pytorch broadcasting functionality to deal with batched input.
+
+    Args:
+        x: Input tensor of shape (N, dims).
+        lower: The minimum value of the tensor. Shape (dims,)
+        upper: The maximum value of the tensor. Shape (dims,)
+
+    Returns:
+        Clamped transform of the tensor. Shape (N, dims)
+    """
     return torch.max(torch.min(x, upper), lower)
 
 """
@@ -270,6 +352,15 @@ Rotation conversions
 
 @torch.jit.script
 def quat_diff_rad(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """
+    Get the difference in radians between two quaternions.
+
+    Args:
+        a: first quaternion, shape (N, 4)
+        b: second quaternion, shape (N, 4)
+    Returns:
+        Difference in radians, shape (N,)
+    """
     b_conj = quat_conjugate(b)
     mul = quat_mul(a, b_conj)
     # 2 * torch.acos(torch.abs(mul[:, -1]))
@@ -283,6 +374,13 @@ def quat_diff_rad(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script
 def local_to_world_space(pos_offset_local: torch.Tensor, pose_global: torch.Tensor):
+    """ Convert a point from the local frame to the global frame
+    Args:
+        pos_offset_local: Point in local frame. Shape: [N, 3]
+        pose_global: The spatial pose of this point. Shape: [N, 7]
+    Returns:
+        Position in the global frame. Shape: [N, 3]
+    """
     quat_pos_local = torch.cat(
         [pos_offset_local, torch.zeros(pos_offset_local.shape[0], 1, dtype=torch.float32, device=pos_offset_local.device)],
         dim=-1
@@ -297,6 +395,13 @@ def local_to_world_space(pos_offset_local: torch.Tensor, pose_global: torch.Tens
 
 # NB: do not make this function jit, since it is passed around as an argument.
 def normalise_quat_in_pose(pose):
+    """Takes a pose and normalises the quaternion portion of it.
+
+    Args:
+        pose: shape N, 7
+    Returns:
+        Pose with normalised quat. Shape N, 7
+    """
     pos = pose[:, 0:3]
     quat = pose[:, 3:7]
     quat /= torch.norm(quat, dim=-1, p=2).reshape(-1, 1)
@@ -316,6 +421,9 @@ def my_quat_rotate(q, v):
 
 @torch.jit.script
 def quat_to_angle_axis(q):
+    # type: (Tensor) -> Tuple[Tensor, Tensor]
+    # computes axis-angle representation from quaternion q
+    # q must be normalized
     min_theta = 1e-5
     qx, qy, qz, qw = 0, 1, 2, 3
 
@@ -336,17 +444,30 @@ def quat_to_angle_axis(q):
 
 @torch.jit.script
 def angle_axis_to_exp_map(angle, axis):
+    # type: (Tensor, Tensor) -> Tensor
+    # compute exponential map from axis-angle
     angle_expand = angle.unsqueeze(-1)
     exp_map = angle_expand * axis
     return exp_map
 
 @torch.jit.script
 def quat_to_exp_map(q):
+    # type: (Tensor) -> Tensor
+    # compute exponential map from quaternion
+    # q must be normalized
     angle, axis = quat_to_angle_axis(q)
     exp_map = angle_axis_to_exp_map(angle, axis)
     return exp_map
 
 def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
+    """
+    Convert rotations given as quaternions to rotation matrices.
+    Args:
+        quaternions: quaternions with real part first,
+            as tensor of shape (..., 4).
+    Returns:
+        Rotation matrices as tensor of shape (..., 3, 3).
+    """
     r, i, j, k = torch.unbind(quaternions, -1)
     two_s = 2.0 / (quaternions * quaternions).sum(-1)
 
@@ -367,6 +488,10 @@ def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
     return mat.reshape(quaternions.shape[:-1] + (3, 3))
 
 def _sqrt_positive_part(x: torch.Tensor) -> torch.Tensor:
+    """
+    Returns torch.sqrt(torch.max(0, x))
+    subgradient is zero where x is 0.
+    """
     ret = torch.zeros_like(x)
     positive_mask = x > 0
     ret[positive_mask] = torch.sqrt(x[positive_mask])
@@ -374,6 +499,13 @@ def _sqrt_positive_part(x: torch.Tensor) -> torch.Tensor:
 
 
 def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
+    """
+    Convert rotations given as rotation matrices to quaternions.
+    Args:
+        matrix: Rotation matrices as tensor of shape (..., 3, 3).
+    Returns:
+        quaternions with real part first, as tensor of shape (..., 4).
+    """
     if matrix.size(-1) != 3 or matrix.size(-2) != 3:
         raise ValueError(f"Invalid rotation matrix shape {matrix.shape}.")
 
@@ -414,6 +546,8 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
 
 @torch.jit.script
 def quat_to_tan_norm(q):
+    # type: (Tensor) -> Tensor
+    # represents a rotation using the tangent and normal vectors
     ref_tan = torch.zeros_like(q[..., 0:3])
     ref_tan[..., 0] = 1
     tan = my_quat_rotate(q, ref_tan)
@@ -427,6 +561,7 @@ def quat_to_tan_norm(q):
 
 @torch.jit.script
 def euler_xyz_to_exp_map(roll, pitch, yaw):
+    # type: (Tensor, Tensor, Tensor) -> Tensor
     q = quat_from_euler_xyz(roll, pitch, yaw)
     exp_map = quat_to_exp_map(q)
     return exp_map
@@ -458,6 +593,7 @@ def exp_map_to_quat(exp_map):
 
 @torch.jit.script
 def slerp(q0, q1, t):
+    # type: (Tensor, Tensor, Tensor) -> Tensor
     qx, qy, qz, qw = 0, 1, 2, 3
 
     cos_half_theta = q0[..., qw] * q1[..., qw] \
@@ -492,6 +628,10 @@ def slerp(q0, q1, t):
 
 @torch.jit.script
 def calc_heading(q):
+    # type: (Tensor) -> Tensor
+    # calculate heading direction from quaternion
+    # the heading is the direction on the xy plane
+    # q must be normalized
     ref_dir = torch.zeros_like(q[..., 0:3])
     ref_dir[..., 0] = 1
     rot_dir = my_quat_rotate(q, ref_dir)
@@ -501,6 +641,10 @@ def calc_heading(q):
 
 @torch.jit.script
 def calc_heading_quat(q):
+    # type: (Tensor) -> Tensor
+    # calculate heading rotation from quaternion
+    # the heading is the direction on the xy plane
+    # q must be normalized
     heading = calc_heading(q)
     axis = torch.zeros_like(q[..., 0:3])
     axis[..., 2] = 1
@@ -510,9 +654,16 @@ def calc_heading_quat(q):
 
 @torch.jit.script
 def calc_heading_quat_inv(q):
+    # type: (Tensor) -> Tensor
+    # calculate heading rotation from quaternion
+    # the heading is the direction on the xy plane
+    # q must be normalized
     heading = calc_heading(q)
     axis = torch.zeros_like(q[..., 0:3])
     axis[..., 2] = 1
 
     heading_q = quat_from_angle_axis(-heading, axis)
     return heading_q
+
+
+# EOF

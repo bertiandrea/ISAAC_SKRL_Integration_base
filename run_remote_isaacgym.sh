@@ -64,6 +64,6 @@ else
 fi
 
 # Avvia il training con la reward function scelta
-python -m satellite.torch_cartpole_ppo
+python -m satellite.torch_quadcopter_ppo
 
 exit 0
