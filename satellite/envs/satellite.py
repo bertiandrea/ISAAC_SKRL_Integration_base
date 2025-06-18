@@ -13,6 +13,8 @@ from satellite.controller.controller import SatelliteAttitudeController
 
 from isaacgym import gymutil, gymtorch, gymapi
 
+from pathlib import Path
+
 from torch.profiler import record_function
 
 class Satellite(VecTask):
@@ -22,7 +24,7 @@ class Satellite(VecTask):
         self.dt = cfg["sim"].get('dt', 1 / 60.0)  # seconds
         self.env_spacing = cfg["env"].get('envSpacing', 0.0)
         self.asset_name = cfg["env"]["asset"].get('assetName', 'satellite')
-        self.asset_root = cfg["env"]["asset"].get('assetRoot', '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite') 
+        self.asset_root = cfg["env"]["asset"].get('assetRoot', str(Path(__file__).resolve().parent.parent))
         self.asset_file = cfg["env"]["asset"].get('assetFileName', 'satellite.urdf')
         self.asset_init_pos_p = cfg["env"]["asset"].get('init_pos_p', [0.0, 0.0, 0.0])
         self.asset_init_pos_r = cfg["env"]["asset"].get('init_pos_r', [0.0, 0.0, 0.0, 1.0])

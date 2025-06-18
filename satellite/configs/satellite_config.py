@@ -10,7 +10,6 @@ import torch
 from pathlib import Path
 import numpy as np
 
-CUDA = torch.cuda.is_available()
 NUM_ENVS = 4096
 N_EPOCHS = 1
 
@@ -18,23 +17,18 @@ class SatelliteConfig(BaseConfig):
     set_seed = False
     seed = 42
 
-    device_type = "cuda" if CUDA else "cpu"
-    device_id = int(torch.cuda.current_device()) if CUDA else -1
-    device = f"{device_type}:{device_id}" if CUDA else "cpu"
+    physics_engine = 'physx'
 
-    screen_width = 1920
-    screen_height = 1080
-    
     class env:  
-        num_envs = NUM_ENVS
+        numEnvs = NUM_ENVS
    
-        num_observations = 14 # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ]
+        numObservations = 14 # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ]
 
-        num_states = 17 # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ, vx,vy,vz]
+        numStates = 17 # [x,y,z,w, dx,dy,dz,dw, ax,ay,az, actX,actY,actZ, vx,vy,vz]
 
-        num_actions = 3
+        numActions = 3
         
-        env_spacing = [4.0, 4.0, 4.0]
+        env_spacing = 4.0
 
         sensor_noise_std = 0.0
         actuation_noise_std = 0.0
@@ -44,68 +38,68 @@ class SatelliteConfig(BaseConfig):
         overspeed_ang_vel =  0.78540        # soglia in rad/sec per l'overspeed
         episode_length_s = 120              # soglia in secondi per la terminazione di una singola simulazione
         
-        clip_actions = np.Inf
-        clip_observations = np.Inf
+        clipActions = np.Inf
+        clipObservations = np.Inf
 
         torque_scale = 10
-        
-    class asset:
-        root = str(Path(__file__).resolve().parent.parent)
-        file = "satellite.urdf"
-        name = "satellite"
 
-        init_pos_p = [0, 0, 0]    # posizione iniziale del satellite [x,y,z]
-        init_pos_r = [0, 0, 0, 1] # attitude iniziale del satellite [x,y,z,w]
+        class asset:
+            assetRoot = str(Path(__file__).resolve().parent.parent)
+            assetFileName = "satellite.urdf"
+            assetName = "satellite"
 
-        #disable_gravity
-        #collapse_fixed_joints
-        #slices_per_cylinder
-        #replace_cylinder_with_capsule
-        #fix_base_link
-        #default_dof_drive_mode
-        #self_collisions
-        #flip_visual_attachments
+            init_pos_p = [0, 0, 0]    # posizione iniziale del satellite [x,y,z]
+            init_pos_r = [0, 0, 0, 1] # attitude iniziale del satellite [x,y,z,w]
 
-        #density
-        #angular_damping
-        #linear_damping
-        #max_angular_velocity
-        #max_linear_velocity
-        #armature
-        #thickness
+            #disable_gravity
+            #collapse_fixed_joints
+            #slices_per_cylinder
+            #replace_cylinder_with_capsule
+            #fix_base_link
+            #default_dof_drive_mode
+            #self_collisions
+            #flip_visual_attachments
+
+            #density
+            #angular_damping
+            #linear_damping
+            #max_angular_velocity
+            #max_linear_velocity
+            #armature
+            #thickness
 
     class sim:
         dt = 1.0 / 60.0
         gravity = [0.0, 0.0, 0.0] # [m/s^2]
         up_axis = 'z'
-        use_gpu_pipeline = CUDA
-        physics_engine = 'physx'
+        use_gpu_pipeline = True
         substeps = 2
-        num_client_threads = 8
+        
+        #num_client_threads
         #stress_visualization
         #stress_visualization_max
         #stress_visualization_min
         
         class physx:
-            use_gpu = CUDA
+            use_gpu = True
             solver_type = 1
-            num_threads = 8
+            num_threads = 4
             num_position_iterations = 4
             num_velocity_iterations = 1
-            #contact_offset
-            #rest_offset
+            contact_offset = 0.02
+            rest_offset = 0.001
+            bounce_threshold_velocity = 0.2
+            contact_collection = 0
+            default_buffer_size_multiplier = 2.0
+            max_depenetration_velocity = 100.0
+            max_gpu_contact_pairs = 1048576
+            num_subscenes = 4
             #always_use_articulations
-            #bounce_threshold_velocity
-            #contact_collection
-            #default_buffer_size_multiplier
             #friction_correlation_distance
             #friction_offset_threshold
-            #max_depenetration_velocity
-            #max_gpu_contact_pairs
-            #num_subscenes
             
-        class flex:
-            solver_type = 5
+        #class flex:
+            #solver_type
             #num_outer_iterations
             #num_inner_iterations
             #relaxation
@@ -122,31 +116,34 @@ class SatelliteConfig(BaseConfig):
             #shape_collision_distance
             #shape_collision_margin
             #static_friction
-    
+
+    class task:
+        randomize = False
+
     class rl:
         class PPO:
             num_envs = NUM_ENVS
             rollouts = 16
             learning_epochs = 8
-            mini_batches = 2
+            mini_batches = 1
             discount_factor = 0.99
             lambda_ = 0.95
-            learning_rate = 1e-3
+            learning_rate = 3e-4
             grad_norm_clip = 1.0
             ratio_clip = 0.2
             value_clip = 0.2
             clip_predicted_values = True
             entropy_loss_scale = 0.00
-            value_loss_scale = 1.0
+            value_loss_scale = 2.0
             kl_threshold = 0
             random_timesteps = 0
             learning_starts = 0
             
-            #class experiment:
-            #        write_interval = 10
-            #        checkpoint_interval = 100
-            #        directory = "./runs"
-            #        wandb = False
+            class experiment:
+                    write_interval = 10
+                    checkpoint_interval = 100
+                    directory = "./runs/satellite"
+                    wandb = False
 
         class trainer:
             rollouts = 16

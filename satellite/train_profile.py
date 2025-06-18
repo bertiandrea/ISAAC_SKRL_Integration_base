@@ -171,7 +171,7 @@ def main():
 
     cfg = PPO_DEFAULT_CONFIG.copy()
     cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
-        "size": env.state_space, "device": env.device
+        "size": env.observation_space, "device": env.device
     }
     cfg["rl"]["PPO"]["value_preprocessor_kwargs"] = {
         "size": 1, "device": env.device
