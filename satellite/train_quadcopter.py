@@ -13,17 +13,6 @@ from skrl.resources.schedulers.torch import KLAdaptiveRL
 from skrl.trainers.torch import SequentialTrainer
 from skrl.utils import set_seed
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Profiler imports
-from torch.profiler import (
-    profile,
-    ProfilerActivity,
-    tensorboard_trace_handler,
-)
-import os
-import pandas as pd
-# ──────────────────────────────────────────────────────────────────────────────
-
 set_seed()
 
 class Shared(GaussianMixin, DeterministicMixin, Model):
@@ -155,77 +144,4 @@ agent = PPO(models=models,
 cfg_trainer = {"timesteps": 1600, "headless": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
-# ──────────────────────────────────────────────────────────────────────────
-# Setup PyTorch profiler
-log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/quadcopter"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir, exist_ok=True)
-prof = profile(
-    activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-    on_trace_ready=tensorboard_trace_handler(log_dir),
-    #record_shapes=True,
-    #profile_memory=True,
-    #with_stack=True,
-    #with_flops=True,
-    #with_modules=True,
-)
-# ──────────────────────────────────────────────────────────────────────────
-
-prof.start()
 trainer.train()
-prof.stop()
-
-output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/quadcopter/text_output.txt"
-if not os.path.exists(os.path.dirname(output_path)):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-events = prof.key_averages()
-
-with open(output_path, "w") as f:
-    f.write(events.table(sort_by="self_cuda_time_total", row_limit=500))
-
-    f.write("\n\n\n")
-
-    f.write(events.table(sort_by="self_cpu_time_total", row_limit=500))
-
-    f.write("\n\n\n")
-
-    f.write(events.table(sort_by="self_cuda_memory_usage", row_limit=500))
-
-    f.write("\n\n\n")
-
-    f.write(events.table(sort_by="self_cpu_memory_usage", row_limit=500))
-
-rows = []
-for e in events:
-    rows.append({
-        "name":               e.key[:50],  # Truncate to 50 characters
-        "self_cpu_time_ms":   e.self_cpu_time_total / 1e3,
-        "cpu_time_ms":        e.cpu_time_total / 1e3,
-
-        "self_cuda_time_ms":  e.self_device_time_total / 1e3,
-        "cuda_time_ms":       e.device_time_total / 1e3,
-
-        "self_cpu_memory_bytes":   e.self_cpu_memory_usage,
-        "self_cuda_memory_bytes":  e.self_device_memory_usage,
-
-        "cpu_memory_bytes":   e.cpu_memory_usage,
-        "cuda_memory_bytes":  e.device_memory_usage,
-
-        "count":              e.count,
-        "flops":              e.flops,
-
-        "device_type":        str(e.device_type),
-    })
-df = pd.DataFrame(rows)
-
-df['order'] = df['name'].str[0].map({'#': 0, '$': 1}).fillna(2).astype(int)
-df = df.sort_values(['order', 'name'], ascending=[True, True])
-df = df.drop(columns='order')
-
-print(df.head(40))
-
-csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/quadcopter/csv_output.csv"
-if not os.path.exists(os.path.dirname(csv_path)):
-    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-df.to_csv(csv_path, index=False)
