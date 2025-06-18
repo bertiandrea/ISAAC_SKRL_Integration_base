@@ -1,6 +1,6 @@
 import isaacgym
 import torch
-
+import argparse
 
 from skrl.resources.preprocessors.torch import RunningStandardScaler
 from skrl.resources.schedulers.torch import KLAdaptiveRL
@@ -12,6 +12,15 @@ from skrl.utils import set_seed
 from satellite.envs.satellite import Satellite
 from satellite.models.custom_model import Policy, Value
 from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
+from satellite.rewards.satellite_reward import (
+    TestReward,
+    TestRewardSmooth,
+    WeightedSumReward,
+    TwoPhaseReward,
+    ExponentialStabilizationReward,
+    ContinuousDiscreteEffortReward,
+    ShapingReward,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Profiler imports
@@ -24,7 +33,30 @@ import os
 import pandas as pd
 # ──────────────────────────────────────────────────────────────────────────────
 
+REWARD_MAP = {
+    "test": TestReward,
+    "test_smooth": TestRewardSmooth,
+    "weighted_sum": WeightedSumReward,
+    "two_phase": TwoPhaseReward,
+    "exp_stabilization": ExponentialStabilizationReward,
+    "continuous_discrete_effort": ContinuousDiscreteEffortReward,
+    "shaping": ShapingReward,
+}
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Training con reward function selezionabile")
+    parser.add_argument(
+        "--reward-fn",
+        choices=list(REWARD_MAP.keys()),
+        default="test",
+        help="Which RewardFunction?"
+    )
+    return parser.parse_args()
+
 def main():
+    args = parse_args()
+
     set_seed()
    
     cfg = {
@@ -96,7 +128,8 @@ def main():
         graphics_device_id=0,
         headless=True,
         virtual_screen_capture=False,
-        force_render=False
+        force_render=False,
+        reward_fn=REWARD_MAP[args.reward_fn]()
     )
     
     env = IsaacGymWrapper(env)
@@ -106,7 +139,6 @@ def main():
     models = {}
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
     models["value"] = Value(env.observation_space, env.action_space, env.device)
-
 
     cfg = PPO_DEFAULT_CONFIG.copy()
     cfg["rollouts"] = 16  # memory_size
