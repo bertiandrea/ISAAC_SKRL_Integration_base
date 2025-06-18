@@ -90,7 +90,9 @@ def main():
             'asset': {
                 'assetName': 'satellite',
                 'assetRoot': '/home/andreaberti/ISAAC_SKRL_Integration_base/satellite',
-                'assetFileName': 'satellite.urdf'
+                'assetFileName': 'satellite.urdf',
+                'init_pos_p': [0, 0, 0],    # posizione iniziale del satellite [x,y,z]
+                'init_pos_r': [0, 0, 0, 1]  # attitude iniziale del satellite [x,y,z,w]
             }, 
             'enableCameraSensors': False
         },
@@ -99,7 +101,7 @@ def main():
             'substeps': 2,
             'up_axis': 'z',
             'use_gpu_pipeline': True,
-            'gravity': [0.0, 0.0, -9.81],
+            'gravity': [0.0, 0.0, 0.0],
             'physx': {
                 'num_threads': 4,
                 'solver_type': 1,
