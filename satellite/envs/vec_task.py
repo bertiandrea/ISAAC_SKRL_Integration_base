@@ -17,6 +17,8 @@ import sys
 import abc
 from abc import ABC
 
+from torch.profiler import record_function
+
 EXISTING_SIM = None
 SCREEN_CAPTURE_RESOLUTION = (1027, 768)
 
@@ -205,36 +207,40 @@ class VecTask(Env):
         return torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
     def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
-        if self.dr_randomizations.get('actions', None):
-            actions = self.dr_randomizations['actions']['noise_lambda'](actions)
+        with record_function("#VecTask__STEP"):
 
-        action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
+            with record_function("$VecTask__step__pre_noise_clamp"):
+                if self.dr_randomizations.get('actions', None):
+                    actions = self.dr_randomizations['actions']['noise_lambda'](actions)
+                action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
+            
+            with record_function("$VecTask__step__pre_physics_step"):
+                self.pre_physics_step(action_tensor)
 
-        self.pre_physics_step(action_tensor)
+            for i in range(self.control_freq_inv):
+                if self.force_render:
+                    with record_function("#VecTask__step__RENDER"):
+                        self.render()
+                with record_function("#VecTask__step__SIM"):
+                    self.gym.simulate(self.sim)
 
-        for i in range(self.control_freq_inv):
-            if self.force_render:
-                self.render()
-            self.gym.simulate(self.sim)
+            if self.device == 'cpu':
+                with record_function("$VecTask__step__FETCH_RESULTS"):
+                    self.gym.fetch_results(self.sim, True)
 
-        if self.device == 'cpu':
-            self.gym.fetch_results(self.sim, True)
+            with record_function("$VecTask__step__post_physics_step"):
+                self.post_physics_step()
 
-        self.post_physics_step()
+            with record_function("$VecTask__step__post_noise_clamp"):
+                if self.dr_randomizations.get('observations', None):
+                    self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
+                self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
-        self.control_steps += 1
-
-        self.timeout_buf = (self.progress_buf >= self.max_episode_length - 1) & (self.reset_buf != 0)
-
-        if self.dr_randomizations.get('observations', None):
-            self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
-
-        self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
-
-        self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-
-        if self.num_states > 0:
-            self.obs_dict["states"] = self.get_state()
+            self.control_steps += 1
+            self.timeout_buf = (self.progress_buf >= self.max_episode_length - 1) & (self.reset_buf != 0)
+            self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
+            if self.num_states > 0:
+                self.obs_dict["states"] = self.get_state()
 
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
