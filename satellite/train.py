@@ -69,7 +69,7 @@ def main():
 
     if cfg["set_seed"]:
         set_seed(cfg["seed"])
-   
+    
     env = Satellite(
         cfg=cfg,
         rl_device="cuda:0",
@@ -89,7 +89,7 @@ def main():
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
     models["value"] = Value(env.observation_space, env.action_space, env.device)
 
-    cfg = PPO_DEFAULT_CONFIG.copy()
+    cfg["rl"]["PPO"] = PPO_DEFAULT_CONFIG.copy()
     cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
         "size": env.observation_space, "device": env.device
     }

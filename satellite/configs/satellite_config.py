@@ -86,14 +86,14 @@ class SatelliteConfig(BaseConfig):
             num_threads = 4
             num_position_iterations = 4
             num_velocity_iterations = 1
-            contact_offset = 0.02
-            rest_offset = 0.001
-            bounce_threshold_velocity = 0.2
-            contact_collection = 0
-            default_buffer_size_multiplier = 2.0
-            max_depenetration_velocity = 100.0
-            max_gpu_contact_pairs = 1048576
-            num_subscenes = 4
+            #contact_offset
+            #rest_offset
+            #bounce_threshold_velocity
+            #contact_collection
+            #default_buffer_size_multiplier
+            #max_depenetration_velocity
+            #max_gpu_contact_pairs
+            #num_subscenes
             #always_use_articulations
             #friction_correlation_distance
             #friction_offset_threshold
@@ -160,5 +160,6 @@ class SatelliteConfig(BaseConfig):
             kp = 0.5
             ki = 0.0
             kd = 0.1
+    
     class controller:
         controller_logic = False
