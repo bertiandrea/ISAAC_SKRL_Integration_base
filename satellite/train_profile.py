@@ -99,8 +99,8 @@ def main():
                 'contact_offset': 0.02,
                 'rest_offset': 0.001,
                 'bounce_threshold_velocity': 0.2,
-                'max_depenetration_velocity': 1000.0,
-                'default_buffer_size_multiplier': 5.0,
+                'max_depenetration_velocity': 100.0,
+                'default_buffer_size_multiplier': 2.0,
                 'max_gpu_contact_pairs': 1048576,
                 'num_subscenes': 4,
                 'contact_collection': 0
