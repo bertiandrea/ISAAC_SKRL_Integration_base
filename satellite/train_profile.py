@@ -163,9 +163,9 @@ def main():
     cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
     cfg["value_preprocessor"] = RunningStandardScaler
     cfg["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
-    #cfg["experiment"]["write_interval"] = 16
-    #cfg["experiment"]["checkpoint_interval"] = 80
-    #cfg["experiment"]["directory"] = "runs"
+    cfg["experiment"]["write_interval"] = 16
+    cfg["experiment"]["checkpoint_interval"] = 80
+    cfg["experiment"]["directory"] = "runs/satellite"
 
     agent = PPO(models=models,
                 memory=memory,
