@@ -12,12 +12,21 @@ import numpy as np
 
 NUM_ENVS = 4096
 N_EPOCHS = 1
+HEADLESS = True
+FORCE_RENDER = False
 
 class SatelliteConfig(BaseConfig):
     set_seed = False
     seed = 42
 
     physics_engine = 'physx'
+
+    rl_device="cuda:0"
+    sim_device="cuda:0"
+    graphics_device_id=0
+    headless=HEADLESS
+    virtual_screen_capture=False
+    force_render=FORCE_RENDER
 
     class env:  
         numEnvs = NUM_ENVS
@@ -150,7 +159,7 @@ class SatelliteConfig(BaseConfig):
             n_epochs = N_EPOCHS
             timesteps = rollouts * n_epochs
             disable_progressbar = False
-            headless = False
+            headless = HEADLESS
 
         class memory:
             rollouts = 16

@@ -72,12 +72,12 @@ def main():
     
     env = Satellite(
         cfg=cfg,
-        rl_device="cuda:0",
-        sim_device="cuda:0",
-        graphics_device_id=0,
-        headless=False,
-        virtual_screen_capture=False,
-        force_render=True,
+        rl_device=cfg["rl_device"],
+        sim_device=cfg["sim_device"],
+        graphics_device_id=cfg["graphics_device_id"],
+        headless=cfg["headless"],
+        virtual_screen_capture=cfg["virtual_screen_capture"],
+        force_render= cfg["force_render"],
         reward_fn=REWARD_MAP[args.reward_fn]()
     )
     
