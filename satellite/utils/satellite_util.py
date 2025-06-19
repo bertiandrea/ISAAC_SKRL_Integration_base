@@ -40,7 +40,7 @@ def quat_mul(a, b):
 
     return quat
 
-def quat_diff_rad(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+def quat_diff_rad(a, b):
     b_conj = quat_conjugate(b)
     mul = quat_mul(a, b_conj)
     return 2.0 * torch.asin(
@@ -50,5 +50,19 @@ def quat_diff_rad(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
                 p=2, dim=-1), max=1.0)
     )
 
+def quat_rotate(q, v):
+    shape = q.shape
+    q_w = q[:, -1]
+    q_vec = q[:, :3]
+    a = v * (2.0 * q_w ** 2 - 1.0).unsqueeze(-1)
+    b = torch.cross(q_vec, v, dim=-1) * q_w.unsqueeze(-1) * 2.0
+    c = q_vec * \
+        torch.bmm(q_vec.view(shape[0], 1, 3), v.view(
+            shape[0], 3, 1)).squeeze(-1) * 2.0
+    return a + b + c
 
+def quat_axis(q, axis=0):
+    basis_vec = torch.zeros(q.shape[0], 3, device=q.device)
+    basis_vec[:, axis] = 1
+    return quat_rotate(q, basis_vec)
  

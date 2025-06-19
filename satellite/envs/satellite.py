@@ -1,6 +1,6 @@
 # satellite.py
 
-from satellite.utils.satellite_util import sample_random_quaternion_batch, quat_diff, quat_diff_rad
+from satellite.utils.satellite_util import sample_random_quaternion_batch, quat_diff, quat_diff_rad, quat_axis
 from satellite.envs.vec_task import VecTask
 from satellite.rewards.satellite_reward import (
     TestReward,
@@ -37,6 +37,7 @@ class Satellite(VecTask):
         self.threshold_vel_goal = cfg["env"].get('threshold_vel_goal', 0.01745)  # radians/sec
         self.overspeed_ang_vel = cfg["env"].get('overspeed_ang_vel', 0.78540)  # radians/sec
         self.max_episode_length = cfg["env"].get('episode_length_s', 120) / self.dt  # seconds
+        self.debug_arrows = cfg["env"].get('debug_arrows', False)
         
         super().__init__(config=cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -86,6 +87,9 @@ class Satellite(VecTask):
                 torque_tau=cfg["controller"].get("torque_tau", 0.02)
             )
 
+        if self.debug_arrows:
+            self.draw_arrows()
+
     def create_sim(self) -> None:
         self.gym = gymapi.acquire_gym()
         self.sim = self.gym.create_sim(self.device_id, self.device_id, self.physics_engine, self.sim_params)
@@ -97,10 +101,12 @@ class Satellite(VecTask):
         env_lower = gymapi.Vec3(-spacing, -spacing, -spacing)
         env_upper = gymapi.Vec3(spacing, spacing, spacing)
 
+        self.envs = []
         for i in range(self.num_envs):
             env = self.gym.create_env(self.sim, env_lower, env_upper, num_per_row)
             self.create_actor(i, env, self.asset, self.asset_init_pos_p, self.asset_init_pos_r, 1, self.asset_name)
-    
+            self.envs.append(env)
+
     def load_asset(self):
         asset = self.gym.load_asset(self.sim, self.asset_root, self.asset_file)
         self.num_bodies = self.gym.get_asset_rigid_body_count(asset)
@@ -111,7 +117,17 @@ class Satellite(VecTask):
         init_pose.p = gymapi.Vec3(*pose_p)
         init_pose.r = gymapi.Quat(*pose_r)
         self.gym.create_actor(env, asset_handle, init_pose, f"{name}", env_idx, collision)
-
+       
+    def draw_arrows(self):
+        sat_pos = self.satellite_pos.cpu().numpy()
+        local_dir = quat_axis(self.goal_quat, 2).cpu().numpy()
+        verts = np.concatenate([sat_pos, sat_pos + local_dir * 2], axis=1).astype(np.float32)
+        colors = np.tile([1.0, 0.0, 0.0], (self.num_envs, 1)).astype(np.float32)
+        self.gym.clear_lines(self.viewer)
+        for i, env in enumerate(self.envs):
+            self.gym.add_lines(self.viewer, env, 1,
+                            verts[i : i+1], colors[i : i+1])
+    
     ################################################################################################################################
            
     def reset_idx(self, ids: torch.Tensor) -> None:
@@ -144,6 +160,9 @@ class Satellite(VecTask):
         
         #if self.controller_logic:
         #    self.controller.reset(ids)
+
+        if self.debug_arrows:
+            self.draw_arrows()
 
     ################################################################################################################################
 

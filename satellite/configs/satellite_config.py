@@ -7,7 +7,7 @@ import numpy as np
 
 NUM_ENVS = 1024
 N_EPOCHS = 1024
-HEADLESS = True
+HEADLESS = False
 FORCE_RENDER = False
 PROFILE = False
 
@@ -50,6 +50,8 @@ class SatelliteConfig(BaseConfig):
 
         torque_scale = 10
 
+        debug_arrows = True
+        
         class asset:
             assetRoot = str(Path(__file__).resolve().parent.parent)
             assetFileName = "satellite.urdf"
