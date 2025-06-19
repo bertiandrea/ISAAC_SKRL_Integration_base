@@ -28,7 +28,7 @@ class SatelliteConfig(BaseConfig):
 
         numActions = 3
         
-        env_spacing = 4.0
+        envSpacing = 4.0
 
         sensor_noise_std = 0.0
         actuation_noise_std = 0.0
