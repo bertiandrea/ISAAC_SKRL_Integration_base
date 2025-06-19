@@ -169,8 +169,7 @@ def main():
     models = {}
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
     models["value"] = Value(env.state_space, env.action_space, env.device)
-
-    cfg["rl"]["PPO"] = PPO_DEFAULT_CONFIG.copy()
+   
     cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
         "size": env.state_space, "device": env.device
     }
@@ -183,9 +182,12 @@ def main():
     cfg["rl"]["PPO"]["value_preprocessor"] = RunningStandardScaler
     cfg["rl"]["PPO"]["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.01
     
+    cfg_ppo = PPO_DEFAULT_CONFIG.copy()
+    cfg_ppo.update(cfg["rl"]["PPO"])
+   
     agent = PPO(models=models,
                 memory=memory,
-                cfg=cfg,
+                cfg=cfg_ppo,
                 observation_space=env.state_space,
                 action_space=env.action_space,
                 device=env.device)

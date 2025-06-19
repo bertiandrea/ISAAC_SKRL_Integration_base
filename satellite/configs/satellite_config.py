@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 NUM_ENVS = 65536
-N_EPOCHS = 128
+N_EPOCHS = 2048
 HEADLESS = True
 FORCE_RENDER = False
 PROFILE = False
