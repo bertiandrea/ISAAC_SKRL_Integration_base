@@ -54,24 +54,22 @@ class Env(ABC):
         if enable_camera_sensors == False and self.headless == True:
             self.graphics_device_id = -1
 
-        self.num_environments = config["env"]["numEnvs"]
+        self.num_envs = config["env"]["numEnvs"]
         self.num_agents = config["env"].get("numAgents", 1)  # used for multi-agent environments
-
+        
         self.num_observations = config["env"].get("numObservations", 0)
         self.num_states = config["env"].get("numStates", 0)
 
-        self.obs_space = spaces.Box(np.ones(self.num_obs) * -np.Inf, np.ones(self.num_obs) * np.Inf)
+        self.observation_space = spaces.Box(np.ones(self.num_observations) * -np.Inf, np.ones(self.num_observations) * np.Inf)
         self.state_space = spaces.Box(np.ones(self.num_states) * -np.Inf, np.ones(self.num_states) * np.Inf)
 
         self.num_actions = config["env"]["numActions"]
         self.control_freq_inv = config["env"].get("controlFrequencyInv", 1)
 
-        self.act_space = spaces.Box(np.ones(self.num_actions) * -1., np.ones(self.num_actions) * 1.)
+        self.action_space = spaces.Box(np.ones(self.num_actions) * -1., np.ones(self.num_actions) * 1.)
 
         self.clip_obs = config["env"].get("clipObservations", np.Inf)
         self.clip_actions = config["env"].get("clipActions", np.Inf)
-
-        self.total_train_env_frames: int = 0
 
         self.control_steps: int = 0
 
@@ -80,28 +78,6 @@ class Env(ABC):
 
         self.record_frames: bool = False
         self.record_frames_dir = join("recorded_frames", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-
-    @property
-    def observation_space(self) -> gym.Space:
-        return self.obs_space
-
-    @property
-    def action_space(self) -> gym.Space:
-        return self.act_space
-
-    @property
-    def num_envs(self) -> int:
-        return self.num_environments
-
-    @property
-    def num_acts(self) -> int:
-        return self.num_actions
-
-    @property
-    def num_obs(self) -> int:
-        return self.num_observations
-
-
 
 class VecTask(Env):
 
@@ -133,25 +109,18 @@ class VecTask(Env):
 
         self.gym = gymapi.acquire_gym()
 
-        self.first_randomization = True
-        self.original_props = {}
         self.dr_randomizations = {}
-        self.actor_params_generator = None
         self.extern_actor_params = {}
-        self.last_step = -1
-        self.last_rand_step = -1
         for env_id in range(self.num_envs):
             self.extern_actor_params[env_id] = None
 
-        self.sim_initialized = False
         self.create_sim()
         self.gym.prepare_sim(self.sim)
-        self.sim_initialized = True
 
         self.set_viewer()
         self.allocate_buffers()
 
-        self.obs_dict = {}
+        self.obs_states_dict = {}
 
     def set_viewer(self):
         self.enable_viewer_sync = True
@@ -180,7 +149,7 @@ class VecTask(Env):
 
     def allocate_buffers(self):
         self.obs_buf = torch.zeros(
-            (self.num_envs, self.num_obs), device=self.device, dtype=torch.float)
+            (self.num_envs, self.num_observations), device=self.device, dtype=torch.float)
         self.states_buf = torch.zeros(
             (self.num_envs, self.num_states), device=self.device, dtype=torch.float)
         self.rew_buf = torch.zeros(
@@ -191,8 +160,6 @@ class VecTask(Env):
              self.num_envs, device=self.device, dtype=torch.long)
         self.progress_buf = torch.zeros(
             self.num_envs, device=self.device, dtype=torch.long)
-        self.randomize_buf = torch.zeros(
-            self.num_envs, device=self.device, dtype=torch.long)
         self.extras = {}
 
     def create_sim(self, compute_device: int, graphics_device: int, physics_engine, sim_params: gymapi.SimParams):
@@ -202,9 +169,6 @@ class VecTask(Env):
             quit()
 
         return sim
-
-    def get_state(self):
-        return torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
     def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
         with record_function("#VecTask__STEP"):
@@ -234,23 +198,20 @@ class VecTask(Env):
             with record_function("$VecTask__step__post_noise_clamp"):
                 if self.dr_randomizations.get('observations', None):
                     self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
-                self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-
+                self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+                self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+            
             self.control_steps += 1
             self.timeout_buf = (self.progress_buf >= self.max_episode_length - 1) & (self.reset_buf != 0)
             self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
-            if self.num_states > 0:
-                self.obs_dict["states"] = self.get_state()
 
-        return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
+        return self.obs_states_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
     def reset(self):
-        self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
-        if self.num_states > 0:
-            self.obs_dict["states"] = self.get_state()
-
-        return self.obs_dict
+        return self.obs_states_dict
 
     def render(self, mode="rgb_array"):
         if self.viewer:

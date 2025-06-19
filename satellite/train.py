@@ -87,7 +87,7 @@ def setup_profiler(log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integra
     return prof
 
 def save_profiler_results(prof, log_dir="/home/andreaberti"):
-    output_path = log_dir + "/profiler_logs/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
+    output_path = log_dir + "/profiler_text/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
@@ -168,11 +168,11 @@ def main():
 
     models = {}
     models["policy"] = Policy(env.observation_space, env.action_space, env.device)
-    models["value"] = Value(env.observation_space, env.action_space, env.device)
+    models["value"] = Value(env.state_space, env.action_space, env.device)
 
     cfg["rl"]["PPO"] = PPO_DEFAULT_CONFIG.copy()
     cfg["rl"]["PPO"]["state_preprocessor_kwargs"] = {
-        "size": env.observation_space, "device": env.device
+        "size": env.state_space, "device": env.device
     }
     cfg["rl"]["PPO"]["value_preprocessor_kwargs"] = {
         "size": 1, "device": env.device
@@ -186,7 +186,7 @@ def main():
     agent = PPO(models=models,
                 memory=memory,
                 cfg=cfg,
-                observation_space=env.observation_space,
+                observation_space=env.state_space,
                 action_space=env.action_space,
                 device=env.device)
 

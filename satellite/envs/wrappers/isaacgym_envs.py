@@ -20,6 +20,7 @@ class IsaacGymWrapper(Wrapper):
 
         self._reset_once = True
         self._observations = None
+        self._states = None
         self._info = {}
 
     @property
@@ -35,19 +36,25 @@ class IsaacGymWrapper(Wrapper):
         return convert_gym_space(self._unwrapped.state_space)
         
     def step(self, actions: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]:
-        observations, reward, terminated, self._info = self._env.step(
+        obs_states_dict, reward, terminated, self._info = self._env.step(
             unflatten_tensorized_space(self.action_space, actions)
         )
-        self._observations = flatten_tensorized_space(tensorize_space(self.observation_space, observations["obs"]))
+
+        self._observations = flatten_tensorized_space(tensorize_space(self.observation_space, obs_states_dict["obs"]))
+        self._states = flatten_tensorized_space(tensorize_space(self.state_space, obs_states_dict["states"]))
+
         truncated = self._info["time_outs"] if "time_outs" in self._info else torch.zeros_like(terminated)
-        return self._observations, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), self._info
+        return self._states, reward.view(-1, 1), terminated.view(-1, 1), truncated.view(-1, 1), self._info
 
     def reset(self) -> Tuple[torch.Tensor, Any]:
         if self._reset_once:
-            observations = self._env.reset()
-            self._observations = flatten_tensorized_space(tensorize_space(self.observation_space, observations["obs"]))
+            obs_states_dict = self._env.reset()
+
+            self._observations = flatten_tensorized_space(tensorize_space(self.observation_space, obs_states_dict["obs"]))
+            self._states = flatten_tensorized_space(tensorize_space(self.state_space, obs_states_dict["states"]))
+
             self._reset_once = False
-        return self._observations, self._info
+        return self._states, self._info
 
     def close(self) -> None:
         pass
