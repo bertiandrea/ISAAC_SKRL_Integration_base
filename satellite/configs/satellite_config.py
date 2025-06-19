@@ -14,6 +14,7 @@ NUM_ENVS = 65536
 N_EPOCHS = 1
 HEADLESS = True
 FORCE_RENDER = False
+PROFILE = False
 
 class SatelliteConfig(BaseConfig):
     set_seed = False
@@ -28,6 +29,8 @@ class SatelliteConfig(BaseConfig):
     virtual_screen_capture=False
     force_render=FORCE_RENDER
 
+    profile = PROFILE
+    
     class env:  
         numEnvs = NUM_ENVS
    

@@ -68,6 +68,6 @@ fi
 
 #python -m satellite.train_quadcopter
 
-python -m satellite.train_profile --reward-fn "$REWARD_FN"
+python -m satellite.train --reward-fn "$REWARD_FN"
 
 exit 0
