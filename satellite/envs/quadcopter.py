@@ -4,10 +4,38 @@ import torch
 import xml.etree.ElementTree as ET
 
 from isaacgym import gymutil, gymtorch, gymapi
-from satellite.utils.torch_jit_utils import to_torch, tensor_clamp, torch_rand_float, quat_axis
 from .vec_task import VecTask
 
-from typing import Tuple
+from typing import Tuple, List
+
+def to_torch(x, dtype=torch.float, device='cuda:0', requires_grad=False):
+    return torch.tensor(x, dtype=dtype, device=device, requires_grad=requires_grad)
+
+@torch.jit.script
+def tensor_clamp(t, min_t, max_t):
+    return torch.max(torch.min(t, max_t), min_t)
+
+@torch.jit.script
+def torch_rand_float(lower: float, upper: float, shape: List[int], device: str) -> torch.Tensor:
+    return (upper - lower) * torch.rand(shape, device=device) + lower
+
+@torch.jit.script
+def quat_rotate(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    shape = q.shape
+    q_w = q[:, -1]
+    q_vec = q[:, :3]
+    a = v * (2.0 * q_w ** 2 - 1.0).unsqueeze(-1)
+    b = torch.cross(q_vec, v, dim=-1) * q_w.unsqueeze(-1) * 2.0
+    c = q_vec * \
+        torch.bmm(q_vec.view(shape[0], 1, 3), v.view(
+            shape[0], 3, 1)).squeeze(-1) * 2.0
+    return a + b + c
+
+@torch.jit.script
+def quat_axis(q: torch.Tensor, axis: int = 0) -> torch.Tensor:
+    basis_vec = torch.zeros(q.shape[0], 3, device=q.device)
+    basis_vec[:, axis] = 1
+    return quat_rotate(q, basis_vec)
 
 class Quadcopter(VecTask):
 
