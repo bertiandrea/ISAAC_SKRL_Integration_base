@@ -7,10 +7,10 @@ import numpy as np
 
 NUM_ENVS = 4096
 N_EPOCHS = 2048
-HEADLESS = True
+HEADLESS = False
 FORCE_RENDER = False
 PROFILE = False
-DEBUG_ARROWS = False
+DEBUG_ARROWS = True
 
 class SatelliteConfig(BaseConfig):
     set_seed = False
@@ -36,20 +36,20 @@ class SatelliteConfig(BaseConfig):
 
         numActions = 3
         
-        envSpacing = 4.0
+        envSpacing = 2.0
 
         sensor_noise_std = 0.0
         actuation_noise_std = 0.0
         
-        threshold_ang_goal = 0.01745        # soglia in radianti per orientamento
-        threshold_vel_goal = 0.01745        # soglia in rad/sec per la differenza di velocità
+        threshold_ang_goal = 0.0872665        # soglia in radianti per orientamento
+        threshold_vel_goal = 0.0872665        # soglia in rad/sec per la differenza di velocità
         overspeed_ang_vel =  0.78540        # soglia in rad/sec per l'overspeed
-        episode_length_s = 120              # soglia in secondi per la terminazione di una singola simulazione
+        episode_length_s = 30              # soglia in secondi per la terminazione di una singola simulazione
         
         clipActions = np.Inf
         clipObservations = np.Inf
 
-        torque_scale = 10
+        torque_scale = 1
 
         debug_arrows = DEBUG_ARROWS
         
@@ -92,10 +92,10 @@ class SatelliteConfig(BaseConfig):
         
         class physx:
             use_gpu = True
-            solver_type = 1
-            num_threads = 4
-            num_position_iterations = 4
-            num_velocity_iterations = 1
+            #solver_type = 1
+            #num_threads = 4
+            #num_position_iterations = 4
+            #num_velocity_iterations = 1
             #contact_offset
             #rest_offset
             #bounce_threshold_velocity
@@ -127,43 +127,40 @@ class SatelliteConfig(BaseConfig):
             #shape_collision_margin
             #static_friction
 
-    class task:
-        randomize = False
-
     class rl:
         class PPO:
             num_envs = NUM_ENVS
-            rollouts = 16
+            rollouts = 8
             learning_epochs = 8
-            mini_batches = 1
+            mini_batches = 4
             discount_factor = 0.99
             lambda_ = 0.95
-            learning_rate = 3e-4
+            learning_rate = 1e-3
             grad_norm_clip = 1.0
             ratio_clip = 0.2
             value_clip = 0.2
             clip_predicted_values = True
             entropy_loss_scale = 0.00
-            value_loss_scale = 2.0
+            value_loss_scale = 1.0
             kl_threshold = 0
             random_timesteps = 0
             learning_starts = 0
             
             class experiment:
-                    write_interval = 10
-                    checkpoint_interval = 100
+                    write_interval = "auto"
+                    checkpoint_interval = "auto"
                     directory = "./runs/satellite"
                     wandb = False
 
         class trainer:
-            rollouts = 16
+            rollouts = 8
             n_epochs = N_EPOCHS
             timesteps = rollouts * n_epochs
             disable_progressbar = False
             headless = HEADLESS
 
         class memory:
-            rollouts = 16
+            rollouts = 8
 
     class pid:
         class rate:
