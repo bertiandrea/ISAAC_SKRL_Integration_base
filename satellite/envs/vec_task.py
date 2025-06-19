@@ -109,7 +109,6 @@ class VecTask(Env):
 
         self.gym = gymapi.acquire_gym()
 
-        self.dr_randomizations = {}
         self.extern_actor_params = {}
         for env_id in range(self.num_envs):
             self.extern_actor_params[env_id] = None
@@ -172,14 +171,9 @@ class VecTask(Env):
 
     def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
         with record_function("#VecTask__STEP"):
-
-            with record_function("$VecTask__step__pre_noise_clamp"):
-                if self.dr_randomizations.get('actions', None):
-                    actions = self.dr_randomizations['actions']['noise_lambda'](actions)
-                action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
             
             with record_function("$VecTask__step__pre_physics_step"):
-                self.pre_physics_step(action_tensor)
+                self.pre_physics_step(actions)
 
             for i in range(self.control_freq_inv):
                 if self.force_render:
@@ -195,21 +189,17 @@ class VecTask(Env):
             with record_function("$VecTask__step__post_physics_step"):
                 self.post_physics_step()
 
-            with record_function("$VecTask__step__post_noise_clamp"):
-                if self.dr_randomizations.get('observations', None):
-                    self.obs_buf = self.dr_randomizations['observations']['noise_lambda'](self.obs_buf)
-                self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-                self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+            self.obs_states_dict["obs"] = self.obs_buf.to(self.rl_device)
+            self.obs_states_dict["states"] = self.states_buf.to(self.rl_device)
             
             self.control_steps += 1
-            self.timeout_buf = (self.progress_buf >= self.max_episode_length - 1) & (self.reset_buf != 0)
             self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
 
         return self.obs_states_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
     def reset(self):
-        self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-        self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_states_dict["obs"] = self.obs_buf.to(self.rl_device)
+        self.obs_states_dict["states"] = self.states_buf.to(self.rl_device)
 
         return self.obs_states_dict
 

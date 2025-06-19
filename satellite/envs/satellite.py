@@ -235,8 +235,12 @@ class Satellite(VecTask):
                 self.overspeed_ang_vel
             )
 
-            self.timeout_buf = torch.where(torch.logical_or(timeout, overspeed), True, False)
             self.reset_buf = torch.where(goal, True, False)
+
+            self.timeout_buf = torch.where(
+                torch.logical_and(
+                    torch.logical_or(timeout, overspeed), torch.logical_not(self.reset_buf)
+                    ), True, False)
 
     def pre_physics_step(self, actions):
         self.apply_torque(actions)
