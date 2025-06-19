@@ -1,21 +1,19 @@
+# vec_task.py
+
+import isaacgym #BugFix
+import torch
+from isaacgym import gymtorch, gymapi
+
 import os
 import time
+import sys
+import numpy as np
 from datetime import datetime
 from os.path import join
 from typing import Dict, Any, Tuple
-
-import gym
-from gym import spaces
-
-from isaacgym import gymtorch, gymapi
-
-import torch
-import numpy as np
-
-import sys
-
-import abc
 from abc import ABC
+
+from gym import spaces
 
 from torch.profiler import record_function
 

@@ -1,8 +1,6 @@
 # satellite_util.py
 
 import isaacgym #BugFix
-from isaacgym import gymapi
-from isaacgym import gymtorch
 import torch
 
 def sample_random_quaternion_batch(device, n):

@@ -1,10 +1,6 @@
 # controller.py
 
-from satellite.utils.satellite_util import quat_diff
-
 import isaacgym #BugFix
-from isaacgym import gymapi
-from isaacgym import gymtorch
 import torch
 
 class SatelliteAttitudeController:

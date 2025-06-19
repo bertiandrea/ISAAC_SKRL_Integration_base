@@ -1,13 +1,4 @@
-import isaacgym
-import torch
-import argparse
-
-from skrl.resources.preprocessors.torch import RunningStandardScaler
-from skrl.resources.schedulers.torch import KLAdaptiveRL
-from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
-from skrl.memories.torch import RandomMemory
-from skrl.trainers.torch import SequentialTrainer
-from skrl.utils import set_seed
+# train.py
 
 from satellite.configs.satellite_config import SatelliteConfig
 from satellite.envs.satellite import Satellite
@@ -22,6 +13,18 @@ from satellite.rewards.satellite_reward import (
     ContinuousDiscreteEffortReward,
     ShapingReward,
 )
+
+import isaacgym
+import torch
+
+from skrl.resources.preprocessors.torch import RunningStandardScaler
+from skrl.resources.schedulers.torch import KLAdaptiveRL
+from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
+from skrl.memories.torch import RandomMemory
+from skrl.trainers.torch import SequentialTrainer
+from skrl.utils import set_seed
+
+import argparse
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Profiler imports

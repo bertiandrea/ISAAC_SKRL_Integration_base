@@ -1,5 +1,4 @@
-import numpy as np
-import torch
+# satellite.py
 
 from satellite.utils.satellite_util import sample_random_quaternion_batch, quat_diff, quat_diff_rad
 from satellite.envs.vec_task import VecTask
@@ -11,9 +10,12 @@ from satellite.rewards.satellite_reward import (
 from satellite.pid.pid import PID
 from satellite.controller.controller import SatelliteAttitudeController
 
+import isaacgym #BugFix
+import torch
 from isaacgym import gymutil, gymtorch, gymapi
 
 from pathlib import Path
+import numpy as np
 
 from torch.profiler import record_function
 

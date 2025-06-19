@@ -2,16 +2,11 @@
 
 from satellite.configs.base_config import BaseConfig
 
-import isaacgym #BugFix
-from isaacgym import gymapi
-from isaacgym import gymtorch
-import torch
-
 from pathlib import Path
 import numpy as np
 
-NUM_ENVS = 65536
-N_EPOCHS = 2048
+NUM_ENVS = 1024
+N_EPOCHS = 1024
 HEADLESS = True
 FORCE_RENDER = False
 PROFILE = False

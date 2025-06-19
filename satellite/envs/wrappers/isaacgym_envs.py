@@ -1,7 +1,8 @@
-from typing import Any, Tuple, Union
+# isaacgym_envs.py
 
-import gymnasium
+from satellite.envs.wrappers.base import Wrapper
 
+import isaacgym #BugFix
 import torch
 
 from skrl.utils.spaces.torch import (
@@ -11,8 +12,8 @@ from skrl.utils.spaces.torch import (
     unflatten_tensorized_space,
 )
 
-from satellite.envs.wrappers.base import Wrapper
-
+import gymnasium
+from typing import Any, Tuple, Union
 
 class IsaacGymWrapper(Wrapper):
     def __init__(self, env: Any) -> None:

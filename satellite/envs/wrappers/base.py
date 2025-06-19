@@ -1,12 +1,11 @@
-from typing import Any, Mapping, Sequence, Tuple, Union
+# base.py
 
-import gymnasium
-import gym
-
+import isaacgym #BugFix
 import torch
 
 from skrl import config
 
+from typing import Any
 
 class Wrapper(object):
     def __init__(self, env: Any) -> None:
