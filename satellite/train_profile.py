@@ -84,9 +84,10 @@ def setup_profiler(log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integra
         with_flops=True,
         with_modules=True,
     )
+    return prof
 
-def save_profiler_results(prof, log_dir="/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/satellite"):
-    output_path = log_dir + "/text_output.txt"
+def save_profiler_results(prof, log_dir="/home/andreaberti"):
+    output_path = log_dir + "/profiler_logs/ISAAC_SKRL_Integration_base/satellite/text_output.txt"
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
@@ -136,7 +137,7 @@ def save_profiler_results(prof, log_dir="/home/andreaberti/profiler_logs/ISAAC_S
 
     print(df.head(40))
 
-    csv_path = log_dir + "/csv_output.csv"
+    csv_path = log_dir + "/profiler_text/ISAAC_SKRL_Integration_base/satellite/csv_output.csv"
     if not os.path.exists(os.path.dirname(csv_path)):
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     df.to_csv(csv_path, index=False)
