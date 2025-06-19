@@ -5,11 +5,12 @@ from satellite.configs.base_config import BaseConfig
 from pathlib import Path
 import numpy as np
 
-NUM_ENVS = 1024
-N_EPOCHS = 1024
-HEADLESS = False
+NUM_ENVS = 4096
+N_EPOCHS = 2048
+HEADLESS = True
 FORCE_RENDER = False
 PROFILE = False
+DEBUG_ARROWS = False
 
 class SatelliteConfig(BaseConfig):
     set_seed = False
@@ -50,7 +51,7 @@ class SatelliteConfig(BaseConfig):
 
         torque_scale = 10
 
-        debug_arrows = True
+        debug_arrows = DEBUG_ARROWS
         
         class asset:
             assetRoot = str(Path(__file__).resolve().parent.parent)
