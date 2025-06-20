@@ -1,3 +1,4 @@
+import numpy as np
 import isaacgym
 
 import torch
@@ -68,8 +69,8 @@ cfg = {
         'envSpacing': 1.25, 
         'maxEpisodeLength': 500, 
         'enableDebugVis': False, 
-        'clipObservations': 5.0, 
-        'clipActions': 1.0, 
+        'clipObservations': np.inf,  # no clipping
+        'clipActions': np.inf,  # no clipping
         'enableCameraSensors': False
     },
     'sim': {
@@ -79,19 +80,7 @@ cfg = {
         'use_gpu_pipeline': True, 
         'gravity': [0.0, 0.0, -9.81], 
         'physx': {
-            'num_threads': 4, 
-            'solver_type': 1, 
             'use_gpu': True, 
-            'num_position_iterations': 4, 
-            'num_velocity_iterations': 0, 
-            'contact_offset': 0.02, 
-            'rest_offset': 0.001, 
-            'bounce_threshold_velocity': 0.2, 
-            'max_depenetration_velocity': 1000.0, 
-            'default_buffer_size_multiplier': 5.0, 
-            'max_gpu_contact_pairs': 1048576, 
-            'num_subscenes': 4, 
-            'contact_collection': 0
         }
     },
     'task': {
@@ -117,42 +106,42 @@ models = {}
 models["policy"] = Shared(env.observation_space, env.action_space, env.device)
 models["value"] = models["policy"]  # same instance: shared model
 
-cfg = PPO_DEFAULT_CONFIG.copy()
-cfg["rollouts"] = 8  # memory_size
-cfg["learning_epochs"] = 8
-cfg["mini_batches"] = 4  # 8 * 8192 / 16384
-cfg["discount_factor"] = 0.99
-cfg["lambda"] = 0.95
-cfg["learning_rate"] = 1e-3
-cfg["learning_rate_scheduler"] = KLAdaptiveRL
-cfg["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.016}
-cfg["random_timesteps"] = 0
-cfg["learning_starts"] = 0
-cfg["grad_norm_clip"] = 1.0
-cfg["ratio_clip"] = 0.2
-cfg["value_clip"] = 0.2
-cfg["clip_predicted_values"] = True
-cfg["entropy_loss_scale"] = 0.0
-cfg["value_loss_scale"] = 1.0
-cfg["kl_threshold"] = 0
-cfg["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
-cfg["state_preprocessor"] = RunningStandardScaler
-cfg["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
-cfg["value_preprocessor"] = RunningStandardScaler
-cfg["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
-cfg["experiment"]["write_interval"] = 20
-cfg["experiment"]["checkpoint_interval"] = 200
-cfg["experiment"]["directory"] = "runs/quadcopter"
+cfg_ppo = PPO_DEFAULT_CONFIG.copy()
+cfg_ppo["rollouts"] = 8  # memory_size
+cfg_ppo["learning_epochs"] = 8
+cfg_ppo["mini_batches"] = 4  # 8 * 8192 / 16384
+cfg_ppo["discount_factor"] = 0.99
+cfg_ppo["lambda"] = 0.95
+cfg_ppo["learning_rate"] = 1e-3
+cfg_ppo["learning_rate_scheduler"] = KLAdaptiveRL
+cfg_ppo["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.016}
+cfg_ppo["random_timesteps"] = 0
+cfg_ppo["learning_starts"] = 0
+cfg_ppo["grad_norm_clip"] = 1.0
+cfg_ppo["ratio_clip"] = 0.2
+cfg_ppo["value_clip"] = 0.2
+cfg_ppo["clip_predicted_values"] = True
+cfg_ppo["entropy_loss_scale"] = 0.0
+cfg_ppo["value_loss_scale"] = 1.0
+cfg_ppo["kl_threshold"] = 0
+cfg_ppo["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
+cfg_ppo["state_preprocessor"] = RunningStandardScaler
+cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
+cfg_ppo["value_preprocessor"] = RunningStandardScaler
+cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
+cfg_ppo["experiment"]["write_interval"] = 20
+cfg_ppo["experiment"]["checkpoint_interval"] = 200
+cfg_ppo["experiment"]["directory"] = "runs/quadcopter"
 
 agent = PPO(models=models,
             memory=memory,
-            cfg=cfg,
+            cfg=cfg_ppo,
             observation_space=env.observation_space,
             action_space=env.action_space,
             device=env.device)
 
 
-cfg_trainer = {"timesteps": 1600, "headless": True}
+cfg_trainer = {"timesteps": 16, "headless": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # ──────────────────────────────────────────────────────────────────────────

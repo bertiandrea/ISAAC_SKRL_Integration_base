@@ -39,9 +39,9 @@ class Wrapper(object):
     def num_envs(self) -> int:
         return self._unwrapped.num_envs
 
-    @property
-    def state_space(self) -> Union[gymnasium.Space, None]:
-        return self._unwrapped.state_space
+    #@property
+    #def state_space(self) -> Union[gymnasium.Space, None]:
+    #    return self._unwrapped.state_space
 
     @property
     def observation_space(self) -> gymnasium.Space:
