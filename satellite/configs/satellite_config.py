@@ -6,11 +6,11 @@ from pathlib import Path
 import numpy as np
 
 NUM_ENVS = 4096
-N_EPOCHS = 2048
-HEADLESS = False
+N_EPOCHS = 8192
+HEADLESS = True
 FORCE_RENDER = False
 PROFILE = False
-DEBUG_ARROWS = True
+DEBUG_ARROWS = False
 
 class SatelliteConfig(BaseConfig):
     set_seed = False
@@ -49,7 +49,7 @@ class SatelliteConfig(BaseConfig):
         clipActions = np.Inf
         clipObservations = np.Inf
 
-        torque_scale = 1
+        torque_scale = 10
 
         debug_arrows = DEBUG_ARROWS
         

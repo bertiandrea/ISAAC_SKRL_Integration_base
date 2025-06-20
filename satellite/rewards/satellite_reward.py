@@ -9,42 +9,20 @@ from abc import ABC, abstractmethod
 import math
 
 class RewardFunction(ABC):
-    """
-    Base class for reward functions.
-    Computes common state errors (attitude, angular velocity, angular acceleration)
-    and delegates reward computation to subclasses.
-    """
-    def compute(self,
-                quats: torch.Tensor,
-                ang_vels: torch.Tensor,
-                ang_accs: torch.Tensor,
-                goal_quat: torch.Tensor,
-                goal_ang_vel: torch.Tensor,
-                goal_ang_acc: torch.Tensor,
-                actions: torch.Tensor) -> torch.Tensor:
-        # attitude error (radians)
-        phi = quat_diff_rad(quats, goal_quat)
-        # angular velocity error (rad/s)
-        omega_err = torch.norm(torch.sub(ang_vels, goal_ang_vel), dim=1)
-        # angular acceleration error (rad/s^2)
-        acc_err   = torch.norm(torch.sub(ang_accs, goal_ang_acc), dim=1)
-
-        assert not torch.isnan(phi).any() and not torch.isinf(phi).any(), "phi has NaN or Inf"
-        assert not torch.isnan(omega_err).any() and not torch.isinf(omega_err).any(), "omega_err has NaN or Inf"
-        assert not torch.isnan(acc_err).any() and not torch.isinf(acc_err).any(), "acc_err has NaN or Inf"
-
-        reward = self._compute(phi, omega_err, acc_err, actions)
-
-        assert not torch.isnan(reward).any() and not torch.isinf(reward).any(), "reward has NaNs or Infs"
-
-        return reward
-
     @abstractmethod
-    def _compute(self,
-                 phi: torch.Tensor,
-                 omega_err: torch.Tensor,
-                 acc_err: torch.Tensor,
-                 actions: torch.Tensor) -> torch.Tensor:
+    def compute(self,
+                 quats: torch.Tensor,
+                 ang_vels: torch.Tensor,
+                 ang_accs: torch.Tensor,
+                 goal_quat: torch.Tensor,
+                 goal_ang_vel: torch.Tensor,
+                 goal_ang_acc: torch.Tensor,
+                 actions: torch.Tensor
+                 ) -> torch.Tensor:
+        """
+        Compute reward given state and actions.
+        Must be implemented by subclasses.
+        """
         pass
 
 class TestReward(RewardFunction):
@@ -56,11 +34,18 @@ class TestReward(RewardFunction):
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
 
-    def _compute(self, phi, omega_err, acc_err, actions):
-        #print(f"[compute_reward]: angle_diff[0]={math.degrees(phi[0].item()):.2f}° ang_vel_diff[0]={math.degrees(omega_err[0].item()):.2f}°/s ang_acc_diff[0]={math.degrees(acc_err[0].item()):.2f}°/s²")
-        #print(f"[compute_reward]: angle_diff[1]={math.degrees(phi[1].item()):.2f}° ang_vel_diff[1]={math.degrees(omega_err[1].item()):.2f}°/s ang_acc_diff[1]={math.degrees(acc_err[1].item()):.2f}°/s²")
-        #print(f"[compute_reward]: angle_diff[2]={math.degrees(phi[2].item()):.2f}° ang_vel_diff[2]={math.degrees(omega_err[2].item()):.2f}°/s ang_acc_diff[2]={math.degrees(acc_err[2].item()):.2f}°/s²")
-        
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        # attitude error (radians)
+        phi = quat_diff_rad(quats, goal_quat)
+        # angular velocity error (rad/s)
+        omega_err = torch.norm(torch.sub(ang_vels, goal_ang_vel), dim=1)
+        # angular acceleration error (rad/s^2)
+        acc_err   = torch.norm(torch.sub(ang_accs, goal_ang_acc), dim=1)
+
+        assert not torch.isnan(phi).any() and not torch.isinf(phi).any(), "phi has NaN or Inf"
+        assert not torch.isnan(omega_err).any() and not torch.isinf(omega_err).any(), "omega_err has NaN or Inf"
+        assert not torch.isnan(acc_err).any() and not torch.isinf(acc_err).any(), "acc_err has NaN or Inf"
+
         # weight = 1.0 / (1.0 + phi)
         weight   = torch.div(
             torch.ones_like(phi),
@@ -96,24 +81,34 @@ class TestReward(RewardFunction):
 
         reward   = torch.add(torch.add(r_q, r_omega), r_acc)
 
+        assert not torch.isnan(reward).any() and not torch.isinf(reward).any(), "reward has NaNs or Infs"
+
         return reward
 
 class TestRewardSmooth(RewardFunction):
     """
     Simple test reward: weighted inverse errors with dynamic scaling.
     """
-    def __init__(self, alpha_q=1.0, alpha_omega=0.5, alpha_acc=0.2, alpha_smooth=0.1):
+    def __init__(self, alpha_q=1.0, alpha_omega=0.5, alpha_acc=0.2, alpha_smooth=0.1, alpha_spin=0.1):
         self.alpha_q = alpha_q
         self.alpha_omega = alpha_omega
         self.alpha_acc = alpha_acc
         self.alpha_smooth = alpha_smooth
+        self.alpha_spin = alpha_spin
         self.prev_actions = None
 
-    def _compute(self, phi, omega_err, acc_err, actions):
-        #print(f"[compute_reward]: angle_diff[0]={math.degrees(phi[0].item()):.2f}° ang_vel_diff[0]={math.degrees(omega_err[0].item()):.2f}°/s ang_acc_diff[0]={math.degrees(acc_err[0].item()):.2f}°/s²")
-        #print(f"[compute_reward]: angle_diff[1]={math.degrees(phi[1].item()):.2f}° ang_vel_diff[1]={math.degrees(omega_err[1].item()):.2f}°/s ang_acc_diff[1]={math.degrees(acc_err[1].item()):.2f}°/s²")
-        #print(f"[compute_reward]: angle_diff[2]={math.degrees(phi[2].item()):.2f}° ang_vel_diff[2]={math.degrees(omega_err[2].item()):.2f}°/s ang_acc_diff[2]={math.degrees(acc_err[2].item()):.2f}°/s²")
-        
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        # attitude error (radians)
+        phi = quat_diff_rad(quats, goal_quat)
+        # angular velocity error (rad/s)
+        omega_err = torch.norm(torch.sub(ang_vels, goal_ang_vel), dim=1)
+        # angular acceleration error (rad/s^2)
+        acc_err   = torch.norm(torch.sub(ang_accs, goal_ang_acc), dim=1)
+
+        assert not torch.isnan(phi).any() and not torch.isinf(phi).any(), "phi has NaN or Inf"
+        assert not torch.isnan(omega_err).any() and not torch.isinf(omega_err).any(), "omega_err has NaN or Inf"
+        assert not torch.isnan(acc_err).any() and not torch.isinf(acc_err).any(), "acc_err has NaN or Inf"
+
         # weight = 1.0 / (1.0 + phi)
         weight   = torch.div(
             torch.ones_like(phi),
@@ -160,11 +155,21 @@ class TestRewardSmooth(RewardFunction):
             smooth_penalty = torch.zeros(actions.shape[0], device=actions.device)
         self.prev_actions = actions
         
-        reward   = torch.add(torch.add(r_q, r_omega), r_acc)
-        reward   = torch.sub(reward, smooth_penalty)
+        spin_penalty = torch.mul(
+            torch.abs(
+                torch.sub(ang_vels[:, 2], goal_ang_vel[:, 2])
+            ),
+            self.alpha_spin
+        )
+
+        reward = torch.add(torch.add(r_q, r_omega), r_acc)
+        reward = torch.sub(reward, smooth_penalty)
+        reward = torch.sub(reward, spin_penalty)
+
+        assert not torch.isnan(reward).any() and not torch.isinf(reward).any(), "reward has NaNs or Infs"
 
         return reward
-
+    
 class WeightedSumReward(RewardFunction):
     """
     Weighted sum of inverse errors with bonuses and penalties.
@@ -190,7 +195,11 @@ class WeightedSumReward(RewardFunction):
         self.action_saturation_thresh = action_saturation_thresh
         self.penalty_saturation = penalty_saturation
 
-    def _compute(self, phi, omega_err, acc_err, actions):
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        phi = quat_diff_rad(quats, goal_quat)
+        omega_err = torch.norm(ang_vels - goal_ang_vel, dim=1)
+        acc_err = torch.norm(ang_accs - goal_ang_acc, dim=1)
+
         base = (
             self.alpha_q * (1.0 / (1.0 + phi)) +
             self.alpha_omega * (1.0 / (1.0 + omega_err)) +
@@ -211,7 +220,7 @@ class WeightedSumReward(RewardFunction):
         if self.action_saturation_thresh is not None:
             saturated = torch.any(actions.abs() >= self.action_saturation_thresh, dim=1)
             bonus = torch.where(saturated, bonus + self.penalty_saturation, bonus)
-        
+
         return base + bonus
 
 class TwoPhaseReward(RewardFunction):
@@ -219,24 +228,28 @@ class TwoPhaseReward(RewardFunction):
     Phase 1: reward based on improvement until phi < threshold.
     Phase 2: exponential decay once within threshold.
     """
-    def __init__(self, threshold=math.radians(1.0), r1_pos=0.1, r1_neg=-0.1,
+    def __init__(self,
+                 threshold=math.radians(1.0),
+                 r1_pos=0.1, r1_neg=-0.1,
                  alpha=1.0, beta=0.5):
         self.threshold = threshold
         self.r1_pos = r1_pos
         self.r1_neg = r1_neg
         self.alpha = alpha
         self.beta = beta
-        self._prev_phi = None
+        self.prev_phi = None
 
-    def _compute(self, phi, omega_err, acc_err, actions):
-        if self._prev_phi is None:
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        phi = quat_diff_rad(quats, goal_quat)
+
+        if self.prev_phi is None:
             r1 = torch.zeros_like(phi)
         else:
-            delta = phi - self._prev_phi
+            delta = phi - self.prev_phi
             r1 = torch.where(delta < 0.0, self.r1_pos, self.r1_neg)
         r2 = self.alpha * torch.exp(-phi / self.beta)
 
-        self._prev_phi = phi.clone()
+        self.prev_phi = phi.clone()
 
         return torch.where(phi >= self.threshold, r2, r1)
 
@@ -244,22 +257,27 @@ class ExponentialStabilizationReward(RewardFunction):
     """
     Exponential stabilization reward with bonus when within goal radius.
     """
-    def __init__(self, scale=0.14 * 2.0 * math.pi, bonus=9.0, goal_deg=0.25):
+    def __init__(self,
+                 scale=0.14 * 2.0 * math.pi,
+                 bonus=9.0,
+                 goal_deg=0.25):
         self.scale = scale
         self.bonus = bonus
         self.goal_rad = math.radians(goal_deg)
-        self._prev_phi = None
+        self.prev_phi = None
 
-    def _compute(self, phi, omega_err, acc_err, actions):
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        phi = quat_diff_rad(quats, goal_quat)
+        
         exp_term = torch.exp(-phi / self.scale)
-        if self._prev_phi is None:
+        if self.prev_phi is None:
             r = exp_term
         else:
-            delta = phi - self._prev_phi
+            delta = phi - self.prev_phi
             r = torch.where(delta > 0.0, exp_term, exp_term - 1.0)
-        bonus = torch.where(phi <= self.goal_rad, self.bonus, torch.zeros_like(phi))
-        
-        self._prev_phi = phi.clone()
+        bonus = (phi <= self.goal_rad).float() * self.bonus
+
+        self.prev_phi = phi.clone()
 
         return r + bonus
 
@@ -267,21 +285,30 @@ class ContinuousDiscreteEffortReward(RewardFunction):
     """
     Combines error penalty, effort penalty, success bonus, and failure penalty.
     """
-    def __init__(self, error_thresh=1e-2, bonus=5.0,
-                 effort_penalty=0.1, fail_thresh=4.0, fail_penalty=-100.0):
+    def __init__(
+        self,
+        error_thresh=1e-2,
+        bonus=5.0,
+        effort_penalty=0.1,
+        fail_thresh=4.0,
+        fail_penalty=-100.0
+    ):
         self.error_thresh = error_thresh
         self.bonus = bonus
         self.effort_penalty = effort_penalty
         self.fail_thresh = fail_thresh
         self.fail_penalty = fail_penalty
 
-    def _compute(self, phi, omega_err, acc_err, actions):
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        phi = quat_diff_rad(quats, goal_quat)
+        omega_err = torch.norm(ang_vels - goal_ang_vel, dim=1)
+        
         u_norm_sq = torch.sum(actions.pow(2), dim=1)
         sup_err = torch.max(phi, omega_err)
         r1 = -(phi + omega_err + self.effort_penalty * u_norm_sq)
         r2 = torch.where(sup_err <= self.error_thresh, self.bonus, torch.zeros_like(phi))
         r3 = torch.where(sup_err >= self.fail_thresh, self.fail_penalty, torch.zeros_like(phi))
-        
+
         return r1 + r2 + r3
 
 class ShapingReward(RewardFunction):
@@ -292,7 +319,7 @@ class ShapingReward(RewardFunction):
         assert mode in ['R1', 'R2', 'R3', 'R4'], "Unsupported mode"
         self.mode = mode
         self._prev_phi = None
-
+    
     @staticmethod
     def beta_fn(delta, mode):
         if mode in ['R1', 'R2']:
@@ -304,8 +331,10 @@ class ShapingReward(RewardFunction):
         if mode in ['R1', 'R3']:
             return torch.exp(2.0 - phi.abs())
         return 14.0 / (1.0 + torch.exp(2.0 * phi.abs()))
+    
+    def compute(self, quats, ang_vels, ang_accs, goal_quat, goal_ang_vel, goal_ang_acc, actions):
+        phi = quat_diff_rad(quats, goal_quat)
 
-    def _compute(self, phi, omega_err, acc_err, actions):
         if self._prev_phi is None:
             delta = torch.zeros_like(phi)
         else:
