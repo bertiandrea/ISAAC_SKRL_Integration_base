@@ -6,6 +6,8 @@ import torch
 from skrl import config
 
 from typing import Any
+from typing import Union
+import gymnasium
 
 class Wrapper(object):
     def __init__(self, env: Any) -> None:
@@ -35,6 +37,16 @@ class Wrapper(object):
 
     @property
     def num_envs(self) -> int:
-        return self._unwrapped.num_envs if hasattr(self._unwrapped, "num_envs") else 1
+        return self._unwrapped.num_envs
 
+    @property
+    def state_space(self) -> Union[gymnasium.Space, None]:
+        return self._unwrapped.state_space
 
+    @property
+    def observation_space(self) -> gymnasium.Space:
+        return self._unwrapped.observation_space
+
+    @property
+    def action_space(self) -> gymnasium.Space:
+        return self._unwrapped.action_space

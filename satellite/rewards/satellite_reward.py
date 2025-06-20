@@ -9,6 +9,13 @@ from abc import ABC, abstractmethod
 import math
 
 class RewardFunction(ABC):
+    def __init__(self):
+        """
+        Base class for reward functions.
+        Subclasses must implement the compute method.
+        """
+        super().__init__()
+        
     @abstractmethod
     def compute(self,
                  quats: torch.Tensor,
