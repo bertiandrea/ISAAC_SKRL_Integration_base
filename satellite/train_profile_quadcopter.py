@@ -146,7 +146,7 @@ trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # ──────────────────────────────────────────────────────────────────────────
 # Setup PyTorch profiler
-log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration_base/quadcopter"
+log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration/quadcopter"
 if not os.path.exists(log_dir):
     os.makedirs(log_dir, exist_ok=True)
 prof = profile(
@@ -164,7 +164,7 @@ prof.start()
 trainer.train()
 prof.stop()
 
-output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/quadcopter/text_output.txt"
+output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/quadcopter/text_output.txt"
 if not os.path.exists(os.path.dirname(output_path)):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -214,7 +214,7 @@ df = df.drop(columns='order')
 
 print(df.head(40))
 
-csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration_base/quadcopter/csv_output.csv"
+csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/quadcopter/csv_output.csv"
 if not os.path.exists(os.path.dirname(csv_path)):
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 df.to_csv(csv_path, index=False)
