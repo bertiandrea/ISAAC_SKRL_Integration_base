@@ -109,7 +109,7 @@ memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
 
 models = {}
 models["policy"] = Shared(env.observation_space, env.action_space, env.device)
-models["value"] = models["policy"]  # same instance: shared model
+models["value"] = Shared(env.observation_space, env.action_space, env.device)
 
 cfg_ppo = PPO_DEFAULT_CONFIG.copy()
 cfg_ppo["rollouts"] = 16  # memory_size
