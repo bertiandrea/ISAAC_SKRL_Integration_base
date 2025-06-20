@@ -5,11 +5,11 @@ from satellite.configs.base_config import BaseConfig
 from pathlib import Path
 import numpy as np
 
-NUM_ENVS = 4096
-N_EPOCHS = 8192
+NUM_ENVS = 32768
+N_EPOCHS = 1
 HEADLESS = True
 FORCE_RENDER = False
-PROFILE = False
+PROFILE = True
 DEBUG_ARROWS = False
 
 class SatelliteConfig(BaseConfig):

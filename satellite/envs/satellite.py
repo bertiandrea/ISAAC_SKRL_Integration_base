@@ -121,12 +121,14 @@ class Satellite(VecTask):
     def draw_arrows(self):
         sat_pos = self.satellite_pos.cpu().numpy()
         local_dir = quat_axis(self.goal_quat, 2).cpu().numpy()
-        verts = np.concatenate([sat_pos, sat_pos + local_dir * 2], axis=1).astype(np.float32)
+        verts = np.stack([sat_pos, sat_pos + local_dir * 2.0], axis=1).astype(np.float32)
         colors = np.tile([1.0, 0.0, 0.0], (self.num_envs, 1)).astype(np.float32)
         self.gym.clear_lines(self.viewer)
-        for i, env in enumerate(self.envs):
-            self.gym.add_lines(self.viewer, env, 1,
-                            verts[i : i+1], colors[i : i+1])
+        self.gym.add_lines(self.viewer,
+                        None,               # None = batch per tutti gli env
+                        self.num_envs,      # numero di linee = N
+                        verts,              # (N, 2, 3)
+                        colors)             # (N, 3)
     
     ################################################################################################################################
            
@@ -160,9 +162,10 @@ class Satellite(VecTask):
         
         #if self.controller_logic:
         #    self.controller.reset(ids)
-
+        
         if self.debug_arrows:
-            self.draw_arrows()
+            with record_function("$SatelliteVec__reset_idx__draw_arrows"):
+                self.draw_arrows()
 
     ################################################################################################################################
 
