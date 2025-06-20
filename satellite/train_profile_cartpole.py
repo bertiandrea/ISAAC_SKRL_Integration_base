@@ -50,15 +50,13 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
             return GaussianMixin.act(self, inputs, role)
         elif role == "value":
             return DeterministicMixin.act(self, inputs, role)
-
+    
     def compute(self, inputs, role):
         if role == "policy":
             self._shared_output = self.net(inputs["states"])
-            return self.mean_layer(self._shared_output), self.log_std_parameter, {}
+            return self.mean_layer(self.net(inputs["states"])), self.log_std_parameter, {}
         elif role == "value":
-            shared_output = self.net(inputs["states"]) if self._shared_output is None else self._shared_output
-            self._shared_output = None
-            return self.value_layer(shared_output), {}
+            return self.value_layer(self.net(inputs["states"])), {}
 
 
 cfg = {
