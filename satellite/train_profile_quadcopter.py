@@ -64,8 +64,9 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
 cfg = {
     'name': 'Quadcopter',
     'physics_engine': 'physx',
+    'heartbeat': True,
     'env': {
-        'numEnvs': 32768,
+        'numEnvs': 65536,
         'envSpacing': 1.25, 
         'maxEpisodeLength': 500, 
         'enableDebugVis': False, 

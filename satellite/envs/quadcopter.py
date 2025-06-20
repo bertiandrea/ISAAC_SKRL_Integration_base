@@ -61,6 +61,8 @@ class Quadcopter(VecTask):
         self.cfg["env"]["numObservations"] = num_obs
         self.cfg["env"]["numActions"] = num_acts
 
+        self.heartbeat = self.cfg.get("heartbeat", False)
+        
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
@@ -286,6 +288,9 @@ class Quadcopter(VecTask):
         self.progress_buf[env_ids] = 0
 
     def pre_physics_step(self, _actions):
+        if self.heartbeat:
+            return
+
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(reset_env_ids) > 0:
             self.reset_idx(reset_env_ids)
@@ -316,6 +321,9 @@ class Quadcopter(VecTask):
 
         self.progress_buf += 1
 
+        if self.heartbeat:
+            return
+        
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
 
