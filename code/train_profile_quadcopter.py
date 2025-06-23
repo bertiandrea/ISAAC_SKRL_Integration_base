@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
-from satellite.envs.cartpole import Cartpole
-from satellite.envs.wrappers.isaacgym_envs import IsaacGymWrapper
+from code.envs.quadcopter import Quadcopter
+from code.envs.wrappers.isaacgym_envs import IsaacGymWrapper
 from skrl.memories.torch import RandomMemory
 from skrl.models.torch import DeterministicMixin, GaussianMixin, Model
 from skrl.resources.preprocessors.torch import RunningStandardScaler
@@ -51,39 +51,34 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
             return GaussianMixin.act(self, inputs, role)
         elif role == "value":
             return DeterministicMixin.act(self, inputs, role)
-    
+
     def compute(self, inputs, role):
         if role == "policy":
             return self.mean_layer(self.net(inputs["states"])), self.log_std_parameter, {}
         elif role == "value":
             return self.value_layer(self.net(inputs["states"])), {}
 
-
 cfg = {
-    'name': 'Cartpole',
+    'name': 'Quadcopter',
     'physics_engine': 'physx',
     'heartbeat': True,
     'env': {
         'numEnvs': 32768,
-        'envSpacing': 4.0,
-        'resetDist': 3.0,
-        'maxEffort': 400.0,
+        'envSpacing': 1.25, 
+        'maxEpisodeLength': 500, 
+        'enableDebugVis': False, 
         'clipObservations': np.inf,  # no clipping
         'clipActions': np.inf,  # no clipping
-        'asset': {
-            'assetRoot': '../',
-            'assetFileName': 'cartpole.urdf'
-        }, 
         'enableCameraSensors': False
     },
     'sim': {
-        'dt': 0.0166,
+        'dt': 0.01,
         'substeps': 2,
-        'up_axis': 'z',
-        'use_gpu_pipeline': True,
-        'gravity': [0.0, 0.0, -9.81],
+        'up_axis': 'z', 
+        'use_gpu_pipeline': True, 
+        'gravity': [0.0, 0.0, -9.81], 
         'physx': {
-            'use_gpu': True,
+            'use_gpu': True, 
         }
     },
     'task': {
@@ -91,7 +86,7 @@ cfg = {
     }
 }
 
-env = Cartpole(
+env = Quadcopter(
     cfg=cfg,
     rl_device="cuda:0",
     sim_device="cuda:0",
@@ -103,21 +98,21 @@ env = Cartpole(
 
 env = IsaacGymWrapper(env)
 
-memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=env.device)
+memory = RandomMemory(memory_size=8, num_envs=env.num_envs, device=env.device)
 
 models = {}
 models["policy"] = Shared(env.observation_space, env.action_space, env.device)
 models["value"] = Shared(env.observation_space, env.action_space, env.device)
 
 cfg_ppo = PPO_DEFAULT_CONFIG.copy()
-cfg_ppo["rollouts"] = 16  # memory_size
+cfg_ppo["rollouts"] = 8  # memory_size
 cfg_ppo["learning_epochs"] = 8
-cfg_ppo["mini_batches"] = 1  # 16 * 512 / 8192
+cfg_ppo["mini_batches"] = 4  # 8 * 8192 / 16384
 cfg_ppo["discount_factor"] = 0.99
 cfg_ppo["lambda"] = 0.95
-cfg_ppo["learning_rate"] = 3e-4
+cfg_ppo["learning_rate"] = 1e-3
 cfg_ppo["learning_rate_scheduler"] = KLAdaptiveRL
-cfg_ppo["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.008}
+cfg_ppo["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.016}
 cfg_ppo["random_timesteps"] = 0
 cfg_ppo["learning_starts"] = 0
 cfg_ppo["grad_norm_clip"] = 1.0
@@ -125,16 +120,16 @@ cfg_ppo["ratio_clip"] = 0.2
 cfg_ppo["value_clip"] = 0.2
 cfg_ppo["clip_predicted_values"] = True
 cfg_ppo["entropy_loss_scale"] = 0.0
-cfg_ppo["value_loss_scale"] = 2.0
+cfg_ppo["value_loss_scale"] = 1.0
 cfg_ppo["kl_threshold"] = 0
 cfg_ppo["rewards_shaper"] = lambda rewards, timestep, timesteps: rewards * 0.1
 cfg_ppo["state_preprocessor"] = RunningStandardScaler
 cfg_ppo["state_preprocessor_kwargs"] = {"size": env.observation_space, "device": env.device}
 cfg_ppo["value_preprocessor"] = RunningStandardScaler
 cfg_ppo["value_preprocessor_kwargs"] = {"size": 1, "device": env.device}
-cfg_ppo["experiment"]["write_interval"] = "auto"
-cfg_ppo["experiment"]["checkpoint_interval"] = "auto"
-cfg_ppo["experiment"]["directory"] = "runs/cartpole"
+cfg_ppo["experiment"]["write_interval"] = 20
+cfg_ppo["experiment"]["checkpoint_interval"] = 200
+cfg_ppo["experiment"]["directory"] = "runs/quadcopter"
 
 agent = PPO(models=models,
             memory=memory,
@@ -143,12 +138,13 @@ agent = PPO(models=models,
             action_space=env.action_space,
             device=env.device)
 
+
 cfg_trainer = {"timesteps": 16, "headless": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # ──────────────────────────────────────────────────────────────────────────
 # Setup PyTorch profiler
-log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration/cartpole"
+log_dir = "/home/andreaberti/profiler_logs/ISAAC_SKRL_Integration/quadcopter"
 if not os.path.exists(log_dir):
     os.makedirs(log_dir, exist_ok=True)
 prof = profile(
@@ -166,7 +162,7 @@ prof.start()
 trainer.train()
 prof.stop()
 
-output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/cartpole/text_output.txt"
+output_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/quadcopter/text_output.txt"
 if not os.path.exists(os.path.dirname(output_path)):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -216,7 +212,7 @@ df = df.drop(columns='order')
 
 print(df.head(40))
 
-csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/cartpole/csv_output.csv"
+csv_path = "/home/andreaberti/profiler_text/ISAAC_SKRL_Integration/quadcopter/csv_output.csv"
 if not os.path.exists(os.path.dirname(csv_path)):
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 df.to_csv(csv_path, index=False)

@@ -64,8 +64,8 @@ else
 fi
 
 # Avvia il training con la reward function scelta
-python -m satellite.train_profile_cartpole
+python -m code.train_profile_cartpole
 
-python -m satellite.train_profile_quadcopter
+python -m code.train_profile_quadcopter
 
 exit 0
