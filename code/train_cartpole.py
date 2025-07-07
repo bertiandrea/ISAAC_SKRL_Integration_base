@@ -82,9 +82,6 @@ cfg = {
         'max_gpu_contact_pairs': 1048576, # 1024*1024
         'contact_collection': 0
     },
-    'task': {
-        'randomize': False
-    }
 }
 
 env = Cartpole(
