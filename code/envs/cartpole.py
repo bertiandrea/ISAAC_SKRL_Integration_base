@@ -11,15 +11,12 @@ class Cartpole(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
         self.cfg = cfg
 
-        self.reset_dist = self.cfg["env"]["resetDist"]
-
-        self.max_push_effort = self.cfg["env"]["maxEffort"]
+        self.reset_dist = 3.0
+        self.max_push_effort = 400.0
         self.max_episode_length = 500
 
         self.cfg["env"]["numObservations"] = 4
         self.cfg["env"]["numActions"] = 1
-
-        self.heartbeat = self.cfg.get("heartbeat", False)
 
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -126,9 +123,6 @@ class Cartpole(VecTask):
         self.progress_buf[env_ids] = 0
 
     def pre_physics_step(self, actions):
-        if self.heartbeat:
-            return
-
         actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
         actions_tensor[::self.num_dof] = actions.to(self.device).squeeze() * self.max_push_effort
         forces = gymtorch.unwrap_tensor(actions_tensor)
@@ -137,9 +131,6 @@ class Cartpole(VecTask):
     def post_physics_step(self):
         self.progress_buf += 1
 
-        if self.heartbeat:
-            return
-        
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(env_ids) > 0:
             self.reset_idx(env_ids)

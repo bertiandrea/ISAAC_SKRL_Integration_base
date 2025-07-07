@@ -15,8 +15,6 @@ from abc import ABC
 
 from gym import spaces
 
-from torch.profiler import record_function
-
 EXISTING_SIM = None
 SCREEN_CAPTURE_RESOLUTION = (1027, 768)
 
@@ -107,10 +105,6 @@ class VecTask(Env):
 
         self.gym = gymapi.acquire_gym()
 
-        self.extern_actor_params = {}
-        for env_id in range(self.num_envs):
-            self.extern_actor_params[env_id] = None
-
         self.create_sim()
         self.gym.prepare_sim(self.sim)
 
@@ -168,30 +162,25 @@ class VecTask(Env):
         return sim
 
     def step(self, actions: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor, Dict[str, Any]]:
-        with record_function("#VecTask__STEP"):
-            
-            with record_function("$VecTask__step__pre_physics_step"):
-                self.pre_physics_step(actions)
+        action_tensor = torch.clamp(actions, -self.clip_actions, self.clip_actions)
 
-            for i in range(self.control_freq_inv):
-                if self.force_render:
-                    with record_function("#VecTask__step__RENDER"):
-                        self.render()
-                with record_function("#VecTask__step__SIM"):
-                    self.gym.simulate(self.sim)
+        self.pre_physics_step(action_tensor)
 
-            if self.device == 'cpu':
-                with record_function("$VecTask__step__FETCH_RESULTS"):
-                    self.gym.fetch_results(self.sim, True)
+        for i in range(self.control_freq_inv):
+            if self.force_render:
+                self.render()
+            self.gym.simulate(self.sim)
 
-            with record_function("$VecTask__step__post_physics_step"):
-                self.post_physics_step()
+        if self.device == 'cpu':
+            self.gym.fetch_results(self.sim, True)
 
-            self.obs_states_dict["obs"] = self.obs_buf.to(self.rl_device)
-            self.obs_states_dict["states"] = self.states_buf.to(self.rl_device)
-            
-            self.control_steps += 1
-            self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
+        self.post_physics_step()
+
+        self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+
+        self.control_steps += 1
+        self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
 
         return self.obs_states_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 

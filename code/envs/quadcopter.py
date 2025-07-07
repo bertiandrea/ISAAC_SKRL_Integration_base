@@ -42,8 +42,8 @@ class Quadcopter(VecTask):
     def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
         self.cfg = cfg
 
-        self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        self.debug_viz = self.cfg["env"]["enableDebugVis"]
+        self.max_episode_length = 500
+        self.debug_viz = False
 
         dofs_per_env = 8
         bodies_per_env = 9
@@ -51,17 +51,12 @@ class Quadcopter(VecTask):
         # Observations:
         # 0:13 - root state
         # 13:29 - DOF states
-        num_obs = 21
-
         # Actions:
         # 0:8 - rotor DOF position targets
         # 8:12 - rotor thrust magnitudes
-        num_acts = 12
 
-        self.cfg["env"]["numObservations"] = num_obs
-        self.cfg["env"]["numActions"] = num_acts
-
-        self.heartbeat = self.cfg.get("heartbeat", False)
+        self.cfg["env"]["numObservations"] = 21
+        self.cfg["env"]["numActions"] = 12
         
         super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
 
@@ -288,9 +283,6 @@ class Quadcopter(VecTask):
         self.progress_buf[env_ids] = 0
 
     def pre_physics_step(self, _actions):
-        if self.heartbeat:
-            return
-
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(reset_env_ids) > 0:
             self.reset_idx(reset_env_ids)
@@ -318,12 +310,8 @@ class Quadcopter(VecTask):
         self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), None, gymapi.LOCAL_SPACE)
 
     def post_physics_step(self):
-
         self.progress_buf += 1
 
-        if self.heartbeat:
-            return
-        
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
 

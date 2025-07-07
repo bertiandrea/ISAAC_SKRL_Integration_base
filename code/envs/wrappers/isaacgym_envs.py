@@ -58,4 +58,14 @@ class IsaacGymWrapper(Wrapper):
         return self._observations, self._info
 
     def close(self) -> None:
-        pass
+        for env in self.envs:
+            self.gym.destroy_env(env)
+        
+        print(f"Destroyed environments: {len(self.envs)}")
+        
+        if self.viewer is not None:
+            self.gym.destroy_viewer(self.viewer)
+            print("Destroyed viewer")
+
+        self.gym.destroy_sim(self.sim)
+        print("Destroyed simulation")
