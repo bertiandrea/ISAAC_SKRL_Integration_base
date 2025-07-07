@@ -83,29 +83,7 @@ class Cartpole(VecTask):
             self.envs.append(env_ptr)
             self.cartpole_handles.append(cartpole_handle)
 
-    def compute_reward(self):
-        pole_angle = self.obs_buf[:, 2]
-        pole_vel = self.obs_buf[:, 3]
-        cart_vel = self.obs_buf[:, 1]
-        cart_pos = self.obs_buf[:, 0]
-
-        self.rew_buf[:], self.reset_buf[:] = compute_cartpole_reward(
-            pole_angle, pole_vel, cart_vel, cart_pos,
-            self.reset_dist, self.reset_buf, self.progress_buf, self.max_episode_length
-        )
-
-    def compute_observations(self, env_ids=None):
-        if env_ids is None:
-            env_ids = np.arange(self.num_envs)
-
-        self.gym.refresh_dof_state_tensor(self.sim)
-
-        self.obs_buf[env_ids, 0] = self.dof_pos[env_ids, 0].squeeze()
-        self.obs_buf[env_ids, 1] = self.dof_vel[env_ids, 0].squeeze()
-        self.obs_buf[env_ids, 2] = self.dof_pos[env_ids, 1].squeeze()
-        self.obs_buf[env_ids, 3] = self.dof_vel[env_ids, 1].squeeze()
-
-        return self.obs_buf
+    ######################################################################################################
 
     def reset_idx(self, env_ids):
         positions = 0.2 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
@@ -122,11 +100,43 @@ class Cartpole(VecTask):
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0
 
+    ######################################################################################################
+
     def pre_physics_step(self, actions):
         actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
         actions_tensor[::self.num_dof] = actions.to(self.device).squeeze() * self.max_push_effort
         forces = gymtorch.unwrap_tensor(actions_tensor)
         self.gym.set_dof_actuation_force_tensor(self.sim, forces)
+
+    ######################################################################################################
+
+    def compute_reward(self):
+        pole_angle = self.obs_buf[:, 2]
+        pole_vel = self.obs_buf[:, 3]
+        cart_vel = self.obs_buf[:, 1]
+        cart_pos = self.obs_buf[:, 0]
+
+        self.rew_buf[:], self.reset_buf[:] = compute_cartpole_reward(
+            pole_angle, pole_vel, cart_vel, cart_pos,
+            self.reset_dist, self.reset_buf, self.progress_buf, self.max_episode_length
+        )
+
+    ######################################################################################################
+
+    def compute_observations(self, env_ids=None):
+        if env_ids is None:
+            env_ids = np.arange(self.num_envs)
+
+        self.gym.refresh_dof_state_tensor(self.sim)
+
+        self.obs_buf[env_ids, 0] = self.dof_pos[env_ids, 0].squeeze()
+        self.obs_buf[env_ids, 1] = self.dof_vel[env_ids, 0].squeeze()
+        self.obs_buf[env_ids, 2] = self.dof_pos[env_ids, 1].squeeze()
+        self.obs_buf[env_ids, 3] = self.dof_vel[env_ids, 1].squeeze()
+
+        return self.obs_buf
+    
+    ######################################################################################################
 
     def post_physics_step(self):
         self.progress_buf += 1
@@ -137,6 +147,8 @@ class Cartpole(VecTask):
 
         self.compute_observations()
         self.compute_reward()
+
+    ######################################################################################################
 
 #####################################################################
 ###=========================jit functions=========================###

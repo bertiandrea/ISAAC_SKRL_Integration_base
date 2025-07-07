@@ -185,8 +185,8 @@ class VecTask(Env):
         return self.obs_states_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
     def reset(self):
-        self.obs_states_dict["obs"] = self.obs_buf.to(self.rl_device)
-        self.obs_states_dict["states"] = self.states_buf.to(self.rl_device)
+        self.obs_states_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
+        self.obs_states_dict["states"] = torch.clamp(self.states_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
 
         return self.obs_states_dict
 

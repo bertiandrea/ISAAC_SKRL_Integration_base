@@ -142,7 +142,7 @@ agent = PPO(models=models,
             device=env.device)
 
 
-cfg_trainer = {"timesteps": 1600, "headless": False}
+cfg_trainer = {"timesteps": 1000, "headless": False}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 trainer.train()

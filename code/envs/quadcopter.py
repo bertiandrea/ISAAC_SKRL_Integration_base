@@ -262,6 +262,8 @@ class Quadcopter(VecTask):
                 self.rotor_env_offsets[i, ..., 1] = env_origin.y
                 self.rotor_env_offsets[i, ..., 2] = env_origin.z
 
+    ######################################################################################################
+
     def reset_idx(self, env_ids):
         num_resets = len(env_ids)
 
@@ -282,16 +284,14 @@ class Quadcopter(VecTask):
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0
 
+    ######################################################################################################
+
     def pre_physics_step(self, _actions):
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(reset_env_ids) > 0:
             self.reset_idx(reset_env_ids)
 
         actions = _actions.to(self.device)
-
-        dof_action_speed_scale = 8 * math.pi
-        self.dof_position_targets += self.dt * dof_action_speed_scale * actions[:, 0:8]
-        self.dof_position_targets[:] = tensor_clamp(self.dof_position_targets, self.dof_lower_limits, self.dof_upper_limits)
 
         thrust_action_speed_scale = 200
         self.thrusts += self.dt * thrust_action_speed_scale * actions[:, 8:12]
@@ -302,12 +302,44 @@ class Quadcopter(VecTask):
         self.forces[:, 6, 2] = self.thrusts[:, 2]
         self.forces[:, 8, 2] = self.thrusts[:, 3]
 
+        dof_action_speed_scale = 8 * math.pi
+        self.dof_position_targets += self.dt * dof_action_speed_scale * actions[:, 0:8]
+        self.dof_position_targets[:] = tensor_clamp(self.dof_position_targets, self.dof_lower_limits, self.dof_upper_limits)
+
         self.thrusts[reset_env_ids] = 0.0
         self.forces[reset_env_ids] = 0.0
         self.dof_position_targets[reset_env_ids] = self.dof_positions[reset_env_ids]
 
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.dof_position_targets))
         self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), None, gymapi.LOCAL_SPACE)
+
+    ######################################################################################################
+
+    def compute_reward(self):
+        self.rew_buf[:], self.reset_buf[:] = compute_quadcopter_reward(
+            self.root_positions,
+            self.root_quats,
+            self.root_linvels,
+            self.root_angvels,
+            self.reset_buf, self.progress_buf, self.max_episode_length
+        )
+
+    ######################################################################################################
+
+    def compute_observations(self):
+        target_x = 0.0
+        target_y = 0.0
+        target_z = 1.0
+        self.obs_buf[..., 0] = (target_x - self.root_positions[..., 0]) / 3
+        self.obs_buf[..., 1] = (target_y - self.root_positions[..., 1]) / 3
+        self.obs_buf[..., 2] = (target_z - self.root_positions[..., 2]) / 3
+        self.obs_buf[..., 3:7] = self.root_quats
+        self.obs_buf[..., 7:10] = self.root_linvels / 2
+        self.obs_buf[..., 10:13] = self.root_angvels / math.pi
+        self.obs_buf[..., 13:21] = self.dof_positions
+        return self.obs_buf
+    
+    ######################################################################################################
 
     def post_physics_step(self):
         self.progress_buf += 1
@@ -332,28 +364,7 @@ class Quadcopter(VecTask):
             self.gym.clear_lines(self.viewer)
             self.gym.add_lines(self.viewer, None, self.num_envs * 4, verts, colors)
 
-    def compute_observations(self):
-        target_x = 0.0
-        target_y = 0.0
-        target_z = 1.0
-        self.obs_buf[..., 0] = (target_x - self.root_positions[..., 0]) / 3
-        self.obs_buf[..., 1] = (target_y - self.root_positions[..., 1]) / 3
-        self.obs_buf[..., 2] = (target_z - self.root_positions[..., 2]) / 3
-        self.obs_buf[..., 3:7] = self.root_quats
-        self.obs_buf[..., 7:10] = self.root_linvels / 2
-        self.obs_buf[..., 10:13] = self.root_angvels / math.pi
-        self.obs_buf[..., 13:21] = self.dof_positions
-        return self.obs_buf
-
-    def compute_reward(self):
-        self.rew_buf[:], self.reset_buf[:] = compute_quadcopter_reward(
-            self.root_positions,
-            self.root_quats,
-            self.root_linvels,
-            self.root_angvels,
-            self.reset_buf, self.progress_buf, self.max_episode_length
-        )
-
+    ######################################################################################################
 
 #####################################################################
 ###=========================jit functions=========================###
