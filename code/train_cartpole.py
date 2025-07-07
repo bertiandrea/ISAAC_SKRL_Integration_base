@@ -51,9 +51,7 @@ class Shared(GaussianMixin, DeterministicMixin, Model):
 #####################################################################################
 
 cfg = {
-    'name': 'Cartpole',
     'physics_engine': 'physx',
-    'heartbeat': True,
     'env': {
         'numEnvs': 4096,
         'envSpacing': 4.0,
